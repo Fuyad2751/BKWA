@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import * as XLSX from 'xlsx';
 
 export default function UploadResults() {
   const [exams, setExams] = useState<any[]>([]);
@@ -13,7 +14,9 @@ export default function UploadResults() {
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState("");
-  const [activeTab, setActiveTab] = useState<'upload' | 'manual'>('manual');
+  const [activeTab, setActiveTab] = useState<'manual' | 'excel'>('excel');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [excelPreview, setExcelPreview] = useState<any[]>([]);
 
   useEffect(() => {
     loadData();
@@ -28,7 +31,97 @@ export default function UploadResults() {
     if (schoolRes.data) setSchools(schoolRes.data);
   };
 
-  // স্কুল সিলেক্ট করলে শিক্ষার্থী লোড
+  // ========== এক্সেল ফাইল রিড ==========
+  const handleFileUpload = (file: File) => {
+    setSelectedFile(file);
+    const reader = new FileReader();
+    
+    reader.onload = (e) => {
+      const data = e.target?.result;
+      const workbook = XLSX.read(data, { type: 'binary' });
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      const jsonData = XLSX.utils.sheet_to_json(sheet);
+      setExcelPreview(jsonData as any[]);
+    };
+    
+    reader.readAsBinaryString(file);
+  };
+
+  // এক্সেল ডেটা সেভ
+  const saveExcelData = async () => {
+    if (!selectedExam) return alert('পরীক্ষা সিলেক্ট করুন');
+    if (!selectedSchool) return alert('স্কুল সিলেক্ট করুন');
+    if (excelPreview.length === 0) return alert('কোনো ডেটা নেই');
+
+    setLoading(true);
+
+    try {
+      const { data: studentsData } = await supabase
+        .from('students')
+        .select('id, roll, class, school_id')
+        .eq('school_id', selectedSchool);
+
+      const studentMap = new Map();
+      studentsData?.forEach(s => studentMap.set(String(s.roll), s));
+
+      const resultsToSave = excelPreview.map(row => {
+        // হেডার সাপোর্ট (বাংলা + English)
+        const roll = String(
+          row['রোল'] || row['roll'] || row['Roll'] || row['ROLL'] || ''
+        );
+        const student = studentMap.get(roll);
+        
+        const studentClass = parseInt(
+          row['শ্রেণি'] || row['শ্রেণী'] || row['class'] || row['Class'] || '1'
+        );
+        const isUpperClass = studentClass >= 3;
+
+        const bangla = parseFloat(row['বাংলা'] || row['bangla'] || row['Bangla'] || 0);
+        const english = parseFloat(row['ইংরেজি'] || row['ইংরেজী'] || row['english'] || row['English'] || 0);
+        const math = parseFloat(row['গণিত'] || row['math'] || row['Math'] || 0);
+        const science = isUpperClass 
+          ? parseFloat(row['সমাজ'] || row['বিজ্ঞান'] || row['সমাজ/বিজ্ঞান'] || row['সাঃ বিঃ'] || row['science'] || row['Science'] || 0)
+          : 0;
+
+        const total = isUpperClass 
+          ? parseFloat(((bangla + english + math + science) / 4).toFixed(2))
+          : parseFloat(((bangla + english + math) / 3).toFixed(2));
+
+        let grade = 'Fail';
+        if (total >= 80) grade = 'Scholarship';
+        else if (total >= 60) grade = 'Talentpool';
+        else if (total >= 40) grade = 'General';
+
+        return {
+          exam_id: selectedExam,
+          student_id: student?.id,
+          school_id: selectedSchool,
+          bangla_marks: bangla,
+          english_marks: english,
+          math_marks: math,
+          science_marks: science,
+          total_marks: total,
+          grade,
+          subject_count: isUpperClass ? 4 : 3
+        };
+      });
+
+      const { error } = await supabase
+        .from('results')
+        .upsert(resultsToSave, { onConflict: 'exam_id,student_id' });
+
+      if (error) throw error;
+
+      setSuccess(`✅ ${resultsToSave.length} জনের ফলাফল সফলভাবে সেভ হয়েছে!`);
+      setTimeout(() => setSuccess(''), 5000);
+    } catch (err: any) {
+      alert('❌ ' + err.message);
+    }
+    setLoading(false);
+  };
+
+  // ========== ম্যানুয়াল এন্ট্রি ==========
   const handleSchoolChange = async (schoolId: string) => {
     setSelectedSchool(schoolId);
     if (schoolId) {
@@ -40,53 +133,40 @@ export default function UploadResults() {
         .order('roll');
       if (data) {
         setStudents(data);
-        // অটোমেটিক রেজাল্ট ফর্ম তৈরি
         const resultData = data.map(s => ({
           student_id: s.id,
           school_id: s.school_id,
           student_name: s.name_bn,
           roll: s.roll,
           class: s.class,
-          bangla: '',
-          english: '',
-          math: '',
-          science: '',
-          total: 0,
-          grade: ''
+          bangla: '', english: '', math: '', science: '',
+          total: 0, grade: ''
         }));
         setResults(resultData);
       }
     }
   };
 
-  // নম্বর আপডেট
   const updateMark = (index: number, subject: string, value: string) => {
     const newResults = [...results];
     const student = newResults[index];
-    const studentClass = parseInt(student.class);
+    const isUpper = parseInt(student.class) >= 3;
     
-    // নম্বর সেট
     if (subject === 'bangla') student.bangla = value;
     if (subject === 'english') student.english = value;
     if (subject === 'math') student.math = value;
     if (subject === 'science') student.science = value;
 
-    // টোটাল ক্যালকুলেশন
     const b = parseFloat(student.bangla) || 0;
     const e = parseFloat(student.english) || 0;
     const m = parseFloat(student.math) || 0;
     const s = parseFloat(student.science) || 0;
 
-    if (studentClass >= 3) {
-      // তৃতীয়-পঞ্চম: ৪ বিষয় → মোট ৪০০, স্কেল ১০০ তে
-      student.total = ((b + e + m + s) / 4).toFixed(2);
-    } else {
-      // প্রথম-দ্বিতীয়: ৩ বিষয় → মোট ৩০০, স্কেল ১০০ তে
-      student.total = ((b + e + m) / 3).toFixed(2);
-    }
+    student.total = isUpper 
+      ? parseFloat(((b + e + m + s) / 4).toFixed(2))
+      : parseFloat(((b + e + m) / 3).toFixed(2));
 
-    // গ্রেড
-    const total = parseFloat(student.total);
+    const total = student.total;
     if (total >= 80) student.grade = 'Scholarship';
     else if (total >= 60) student.grade = 'Talentpool';
     else if (total >= 40) student.grade = 'General';
@@ -95,11 +175,8 @@ export default function UploadResults() {
     setResults(newResults);
   };
 
-  // সব রেজাল্ট সেভ
-  const saveResults = async () => {
-    if (!selectedExam) return alert('পরীক্ষা সিলেক্ট করুন');
-    if (!selectedSchool) return alert('স্কুল সিলেক্ট করুন');
-    
+  const saveManualResults = async () => {
+    if (!selectedExam || !selectedSchool) return alert('পরীক্ষা ও স্কুল সিলেক্ট করুন');
     setLoading(true);
     const dataToSave = results.map(r => ({
       exam_id: selectedExam,
@@ -109,19 +186,14 @@ export default function UploadResults() {
       english_marks: parseFloat(r.english) || 0,
       math_marks: parseFloat(r.math) || 0,
       science_marks: parseFloat(r.science) || 0,
-      total_marks: parseFloat(r.total),
+      total_marks: r.total,
       grade: r.grade,
       subject_count: parseInt(r.class) >= 3 ? 4 : 3
     }));
 
     const { error } = await supabase.from('results').upsert(dataToSave, { onConflict: 'exam_id,student_id' });
-    
-    if (error) {
-      alert('❌ ' + error.message);
-    } else {
-      setSuccess('✅ ' + results.length + ' জন শিক্ষার্থীর ফলাফল সেভ হয়েছে!');
-      setTimeout(() => setSuccess(''), 5000);
-    }
+    if (error) alert('❌ ' + error.message);
+    else setSuccess('✅ ফলাফল সেভ হয়েছে!');
     setLoading(false);
   };
 
@@ -130,6 +202,7 @@ export default function UploadResults() {
       <div className="w-64 min-h-screen bg-gray-900 text-white p-4">
         <div className="text-xl font-bold mb-8 p-4 border-b border-gray-700">BKWA Admin</div>
         <Link href="/admin/dashboard" className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800">📊 ড্যাশবোর্ড</Link>
+        <Link href="/admin/exams/add" className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800 mt-2">📝 পরীক্ষা যোগ</Link>
         <Link href="/admin/results/upload" className="flex items-center gap-3 p-3 rounded-lg bg-green-600 mt-2">📊 ফলাফল</Link>
       </div>
 
@@ -144,7 +217,18 @@ export default function UploadResults() {
               <div className="bg-green-50 border border-green-200 text-green-700 p-4 rounded-lg mb-6">{success}</div>
             )}
 
-            {/* সিলেক্ট */}
+            <div className="flex gap-4 mb-8">
+              <button onClick={() => setActiveTab('excel')}
+                className={`px-6 py-3 rounded-lg font-bold ${activeTab === 'excel' ? 'bg-green-600 text-white' : 'bg-gray-200'}`}>
+                📁 এক্সেল আপলোড
+              </button>
+              <button onClick={() => setActiveTab('manual')}
+                className={`px-6 py-3 rounded-lg font-bold ${activeTab === 'manual' ? 'bg-green-600 text-white' : 'bg-gray-200'}`}>
+                ✍️ ম্যানুয়াল এন্ট্রি
+              </button>
+            </div>
+
+            {/* কমন সিলেক্ট */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
               <div>
                 <label className="block font-semibold mb-2">📅 পরীক্ষা *</label>
@@ -155,7 +239,7 @@ export default function UploadResults() {
                 </select>
               </div>
               <div>
-                <label className="block font-semibold mb-2">🏫 স্কুল সিলেক্ট করুন</label>
+                <label className="block font-semibold mb-2">🏫 স্কুল *</label>
                 <select value={selectedSchool} onChange={(e) => handleSchoolChange(e.target.value)}
                   className="w-full p-3 border rounded-lg">
                   <option value="">স্কুল সিলেক্ট করুন</option>
@@ -164,24 +248,112 @@ export default function UploadResults() {
               </div>
             </div>
 
-            {/* রেজাল্ট টেবিল */}
-            {results.length > 0 && (
-              <>
+            {/* ========== এক্সেল ট্যাব ========== */}
+            {activeTab === 'excel' && (
+              <div>
+                {/* ফাইল আপলোড */}
+                <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center mb-6 hover:border-green-500 transition">
+                  <input type="file" accept=".xlsx,.xls,.csv"
+                    onChange={(e) => { if (e.target.files?.[0]) handleFileUpload(e.target.files[0]); }}
+                    className="hidden" id="excel-upload" />
+                  <label htmlFor="excel-upload" className="cursor-pointer">
+                    <div className="text-5xl mb-4">📁</div>
+                    <p className="text-lg font-bold mb-2">{selectedFile ? selectedFile.name : 'এক্সেল ফাইল সিলেক্ট করুন'}</p>
+                    <p className="text-gray-500">.xlsx, .xls, .csv</p>
+                  </label>
+                </div>
+
+                {/* ফরম্যাট গাইড */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+                  <h3 className="font-bold text-blue-800 mb-3">📋 এক্সেল ফাইল ফরম্যাট (বাংলা হেডার)</h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm bg-white border">
+                      <thead className="bg-blue-100">
+                        <tr>
+                          <th className="p-2 border">রোল</th>
+                          <th className="p-2 border">শ্রেণি</th>
+                          <th className="p-2 border">বাংলা</th>
+                          <th className="p-2 border">ইংরেজি</th>
+                          <th className="p-2 border">গণিত</th>
+                          <th className="p-2 border">সমাজ/বিজ্ঞান*</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td className="p-2 border text-center">১০১</td>
+                          <td className="p-2 border text-center">৩</td>
+                          <td className="p-2 border text-center">৮৫</td>
+                          <td className="p-2 border text-center">৯০</td>
+                          <td className="p-2 border text-center">৮৮</td>
+                          <td className="p-2 border text-center">৯২</td>
+                        </tr>
+                        <tr>
+                          <td className="p-2 border text-center">২০১</td>
+                          <td className="p-2 border text-center">১</td>
+                          <td className="p-2 border text-center">৮০</td>
+                          <td className="p-2 border text-center">৭৫</td>
+                          <td className="p-2 border text-center">৮২</td>
+                          <td className="p-2 border text-center">-</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="mt-3 space-y-1 text-sm text-blue-700">
+                    <p>✅ <b>১ম-২য় শ্রেণী:</b> রোল, শ্রেণি, বাংলা, ইংরেজি, গণিত (৩ বিষয়)</p>
+                    <p>✅ <b>৩য়-৫ম শ্রেণী:</b> রোল, শ্রেণি, বাংলা, ইংরেজি, গণিত, সমাজ/বিজ্ঞান (৪ বিষয়)</p>
+                    <p>⚠️ সমাজ/বিজ্ঞান কলাম ১ম-২য় শ্রেণীর জন্য খালি রাখবেন</p>
+                  </div>
+                </div>
+
+                {/* প্রিভিউ + সেভ */}
+                {excelPreview.length > 0 && (
+                  <>
+                    <h3 className="font-bold mb-4">📋 প্রিভিউ ({excelPreview.length} জন)</h3>
+                    <div className="overflow-x-auto mb-6">
+                      <table className="w-full border text-sm">
+                        <thead>
+                          <tr className="bg-green-600 text-white">
+                            {Object.keys(excelPreview[0]).map(key => (
+                              <th key={key} className="p-2 border">{key}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {excelPreview.slice(0, 5).map((row, i) => (
+                            <tr key={i} className="border-t">
+                              {Object.values(row).map((val: any, j) => (
+                                <td key={j} className="p-2 border text-center">{val}</td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <button onClick={saveExcelData} disabled={loading}
+                      className="w-full bg-green-600 text-white py-4 rounded-lg font-bold text-lg hover:bg-green-700 disabled:opacity-50">
+                      {loading ? '⏳ সেভ হচ্ছে...' : `💾 ${excelPreview.length} জনের ফলাফল সেভ করুন`}
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* ========== ম্যানুয়াল ট্যাব ========== */}
+            {activeTab === 'manual' && results.length > 0 && (
+              <div>
                 <div className="overflow-x-auto mb-6">
-                  <table className="w-full border">
+                  <table className="w-full border text-sm">
                     <thead>
                       <tr className="bg-green-600 text-white">
-                        <th className="p-2 border text-sm">রোল</th>
-                        <th className="p-2 border text-sm">নাম</th>
-                        <th className="p-2 border text-sm">শ্রেণি</th>
-                        <th className="p-2 border text-sm">বাংলা</th>
-                        <th className="p-2 border text-sm">ইংরেজি</th>
-                        <th className="p-2 border text-sm">গণিত</th>
-                        {results.some(r => parseInt(r.class) >= 3) && (
-                          <th className="p-2 border text-sm">সমাজ/বিজ্ঞান</th>
-                        )}
-                        <th className="p-2 border text-sm">গড়</th>
-                        <th className="p-2 border text-sm">গ্রেড</th>
+                        <th className="p-2 border">রোল</th>
+                        <th className="p-2 border">নাম</th>
+                        <th className="p-2 border">শ্রেণি</th>
+                        <th className="p-2 border">বাংলা</th>
+                        <th className="p-2 border">ইংরেজি</th>
+                        <th className="p-2 border">গণিত</th>
+                        {results.some(r => parseInt(r.class) >= 3) && <th className="p-2 border">সাঃ/বিঃ</th>}
+                        <th className="p-2 border">গড়</th>
+                        <th className="p-2 border">গ্রেড</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -190,31 +362,19 @@ export default function UploadResults() {
                           <td className="p-2 border text-center font-semibold">{r.roll}</td>
                           <td className="p-2 border">{r.student_name}</td>
                           <td className="p-2 border text-center">{r.class}য়</td>
-                          <td className="p-2 border">
-                            <input type="number" min="0" max="100"
-                              value={r.bangla}
-                              onChange={(e) => updateMark(i, 'bangla', e.target.value)}
-                              className="w-16 p-1 border rounded text-center text-sm" />
-                          </td>
-                          <td className="p-2 border">
-                            <input type="number" min="0" max="100"
-                              value={r.english}
-                              onChange={(e) => updateMark(i, 'english', e.target.value)}
-                              className="w-16 p-1 border rounded text-center text-sm" />
-                          </td>
-                          <td className="p-2 border">
-                            <input type="number" min="0" max="100"
-                              value={r.math}
-                              onChange={(e) => updateMark(i, 'math', e.target.value)}
-                              className="w-16 p-1 border rounded text-center text-sm" />
-                          </td>
+                          <td className="p-2 border"><input type="number" min="0" max="100" value={r.bangla}
+                            onChange={(e) => updateMark(i, 'bangla', e.target.value)}
+                            className="w-16 p-1 border rounded text-center" /></td>
+                          <td className="p-2 border"><input type="number" min="0" max="100" value={r.english}
+                            onChange={(e) => updateMark(i, 'english', e.target.value)}
+                            className="w-16 p-1 border rounded text-center" /></td>
+                          <td className="p-2 border"><input type="number" min="0" max="100" value={r.math}
+                            onChange={(e) => updateMark(i, 'math', e.target.value)}
+                            className="w-16 p-1 border rounded text-center" /></td>
                           {parseInt(r.class) >= 3 && (
-                            <td className="p-2 border">
-                              <input type="number" min="0" max="100"
-                                value={r.science}
-                                onChange={(e) => updateMark(i, 'science', e.target.value)}
-                                className="w-16 p-1 border rounded text-center text-sm" />
-                            </td>
+                            <td className="p-2 border"><input type="number" min="0" max="100" value={r.science}
+                              onChange={(e) => updateMark(i, 'science', e.target.value)}
+                              className="w-16 p-1 border rounded text-center" /></td>
                           )}
                           <td className="p-2 border text-center font-bold">{r.total}</td>
                           <td className="p-2 border text-center">
@@ -222,20 +382,18 @@ export default function UploadResults() {
                               r.grade === 'Scholarship' ? 'bg-yellow-100 text-yellow-800' :
                               r.grade === 'Talentpool' ? 'bg-blue-100 text-blue-800' :
                               r.grade === 'General' ? 'bg-green-100 text-green-800' :
-                              'bg-red-100 text-red-800'
-                            }`}>{r.grade}</span>
+                              'bg-red-100 text-red-800'}`}>{r.grade}</span>
                           </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
-
-                <button onClick={saveResults} disabled={loading}
+                <button onClick={saveManualResults} disabled={loading}
                   className="w-full bg-green-600 text-white py-4 rounded-lg font-bold text-lg hover:bg-green-700 disabled:opacity-50">
                   {loading ? '⏳ সেভ হচ্ছে...' : '💾 সবার ফলাফল সেভ করুন'}
                 </button>
-              </>
+              </div>
             )}
           </div>
         </div>
