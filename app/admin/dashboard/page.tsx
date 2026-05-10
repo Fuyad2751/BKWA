@@ -70,7 +70,8 @@ export default function AdminDashboard() {
           <h1 className="text-2xl font-bold">অ্যাডমিন ড্যাশবোর্ড</h1>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 mb-8">
+        {/* স্ট্যাটস */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-white rounded-xl shadow p-6">
             <div className="text-4xl mb-2">🏫</div>
             <div className="text-3xl font-bold">{schools.length}</div>
@@ -79,7 +80,17 @@ export default function AdminDashboard() {
           <div className="bg-white rounded-xl shadow p-6">
             <div className="text-4xl mb-2">👨‍🎓</div>
             <div className="text-3xl font-bold">{students.length}</div>
-            <div className="text-gray-600">সাম্প্রতিক শিক্ষার্থী</div>
+            <div className="text-gray-600">শিক্ষার্থী</div>
+          </div>
+          <div className="bg-white rounded-xl shadow p-6">
+            <div className="text-4xl mb-2">🏆</div>
+            <div className="text-3xl font-bold">-</div>
+            <div className="text-gray-600">স্কলারশিপ</div>
+          </div>
+          <div className="bg-white rounded-xl shadow p-6">
+            <div className="text-4xl mb-2">⭐</div>
+            <div className="text-3xl font-bold">-</div>
+            <div className="text-gray-600">ট্যালেন্টপুল</div>
           </div>
         </div>
 
@@ -87,22 +98,42 @@ export default function AdminDashboard() {
         <div className="bg-white rounded-xl shadow mb-8">
           <div className="p-6 border-b flex justify-between items-center">
             <h2 className="text-xl font-bold">🏫 স্কুল তালিকা</h2>
-            <Link href="/admin/schools/add" className="bg-green-600 text-white px-4 py-2 rounded-lg">+ স্কুল যোগ</Link>
+            <Link href="/admin/schools/add" className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm">+ স্কুল যোগ</Link>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead><tr className="bg-gray-50"><th className="p-4 text-left">নাম</th><th className="p-4 text-left">EIIN</th><th className="p-4 text-left">ফোন</th><th className="p-4 text-left">অ্যাকশন</th></tr></thead>
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="p-4 text-left">নাম</th>
+                  <th className="p-4 text-left">EIIN</th>
+                  <th className="p-4 text-left">ফোন</th>
+                  <th className="p-4 text-left">প্রধান শিক্ষক</th>
+                  <th className="p-4 text-left">অ্যাকশন</th>
+                </tr>
+              </thead>
               <tbody>
-                {schools.map((s) => (
-                  <tr key={s.id} className="border-t hover:bg-gray-50">
-                    <td className="p-4 font-semibold">{s.name_bn}</td>
-                    <td className="p-4">{s.eiin || '-'}</td>
-                    <td className="p-4">{s.phone || '-'}</td>
-                    <td className="p-4">
-                      <button onClick={() => handleDeleteSchool(s.id, s.name_bn)} className="text-red-600 hover:underline">🗑️ ডিলিট</button>
-                    </td>
-                  </tr>
-                ))}
+                {loading ? (
+                  <tr><td colSpan={5} className="p-4 text-center">⏳ লোড হচ্ছে...</td></tr>
+                ) : schools.length === 0 ? (
+                  <tr><td colSpan={5} className="p-4 text-center">কোনো স্কুল নেই</td></tr>
+                ) : (
+                  schools.map((s) => (
+                    <tr key={s.id} className="border-t hover:bg-gray-50">
+                      <td className="p-4 font-semibold">{s.name_bn}</td>
+                      <td className="p-4">{s.eiin || '-'}</td>
+                      <td className="p-4">{s.phone || '-'}</td>
+                      <td className="p-4">{s.principal || '-'}</td>
+                      <td className="p-4">
+                        <div className="flex gap-2">
+                          <Link href={`/admin/schools/edit/${s.id}`} 
+                            className="text-blue-600 hover:underline text-sm">✏️ এডিট</Link>
+                          <button onClick={() => handleDeleteSchool(s.id, s.name_bn)} 
+                            className="text-red-600 hover:underline text-sm">🗑️ ডিলিট</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -112,23 +143,44 @@ export default function AdminDashboard() {
         <div className="bg-white rounded-xl shadow">
           <div className="p-6 border-b flex justify-between items-center">
             <h2 className="text-xl font-bold">👨‍🎓 শিক্ষার্থী তালিকা</h2>
-            <Link href="/admin/students/add" className="bg-green-600 text-white px-4 py-2 rounded-lg">+ শিক্ষার্থী যোগ</Link>
+            <Link href="/admin/students/add" className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm">+ শিক্ষার্থী যোগ</Link>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead><tr className="bg-gray-50"><th className="p-4 text-left">নাম</th><th className="p-4 text-left">রোল</th><th className="p-4 text-left">শ্রেণি</th><th className="p-4 text-left">স্কুল</th><th className="p-4 text-left">অ্যাকশন</th></tr></thead>
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="p-4 text-left">নাম</th>
+                  <th className="p-4 text-left">রোল</th>
+                  <th className="p-4 text-left">শ্রেণি</th>
+                  <th className="p-4 text-left">স্কুল</th>
+                  <th className="p-4 text-left">লিঙ্গ</th>
+                  <th className="p-4 text-left">অ্যাকশন</th>
+                </tr>
+              </thead>
               <tbody>
-                {students.map((s) => (
-                  <tr key={s.id} className="border-t hover:bg-gray-50">
-                    <td className="p-4 font-semibold">{s.name_bn}</td>
-                    <td className="p-4">{s.roll}</td>
-                    <td className="p-4">{s.class}য়</td>
-                    <td className="p-4 text-gray-600">{s.schools?.name_bn}</td>
-                    <td className="p-4">
-                      <button onClick={() => handleDeleteStudent(s.id, s.name_bn)} className="text-red-600 hover:underline">🗑️ ডিলিট</button>
-                    </td>
-                  </tr>
-                ))}
+                {loading ? (
+                  <tr><td colSpan={6} className="p-4 text-center">⏳ লোড হচ্ছে...</td></tr>
+                ) : students.length === 0 ? (
+                  <tr><td colSpan={6} className="p-4 text-center">কোনো শিক্ষার্থী নেই</td></tr>
+                ) : (
+                  students.map((s) => (
+                    <tr key={s.id} className="border-t hover:bg-gray-50">
+                      <td className="p-4 font-semibold">{s.name_bn}</td>
+                      <td className="p-4">{s.roll}</td>
+                      <td className="p-4">{s.class}য়</td>
+                      <td className="p-4 text-gray-600">{s.schools?.name_bn || '-'}</td>
+                      <td className="p-4">{s.gender === 'male' ? 'ছেলে' : 'মেয়ে'}</td>
+                      <td className="p-4">
+                        <div className="flex gap-2">
+                          <Link href={`/admin/students/edit/${s.id}`}
+                            className="text-blue-600 hover:underline text-sm">✏️ এডিট</Link>
+                          <button onClick={() => handleDeleteStudent(s.id, s.name_bn)}
+                            className="text-red-600 hover:underline text-sm">🗑️ ডিলিট</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
