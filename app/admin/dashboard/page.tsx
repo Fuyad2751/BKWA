@@ -58,6 +58,7 @@ export default function AdminDashboard() {
           <Link href="/admin/dashboard" className="flex items-center gap-3 p-3 rounded-lg bg-green-600">📊 ড্যাশবোর্ড</Link>
           <Link href="/admin/schools/add" className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800">🏫 স্কুল যোগ</Link>
           <Link href="/admin/students/add" className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800">👨‍🎓 শিক্ষার্থী যোগ</Link>
+          <Link href="/admin/exams/add" className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800">📝 পরীক্ষা যোগ</Link>
           <Link href="/admin/results/upload" className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800">📊 ফলাফল আপলোড</Link>
           <Link href="/admin/merit-list" className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800">🏆 মেরিট লিস্ট</Link>
           <button onClick={handleLogout} className="flex items-center gap-3 p-3 rounded-lg hover:bg-red-600 w-full mt-4 border-t border-gray-700 pt-4">🚪 লগআউট</button>
