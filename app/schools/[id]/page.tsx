@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { useReactToPrint } from 'react-to-print';
 
 const classNames: any = { '1': 'প্রথম', '2': 'দ্বিতীয়', '3': 'তৃতীয়', '4': 'চতুর্থ', '5': 'পঞ্চম' };
 
@@ -13,6 +14,15 @@ export default function SchoolDetailPage() {
   const [students, setStudents] = useState<any[]>([]);
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedStudent, setSelectedStudent] = useState<any>(null);
+  const [selectedResult, setSelectedResult] = useState<any>(null);
+  const printRef = useRef<HTMLDivElement>(null);
+
+  const handlePrint = useReactToPrint({
+    contentRef: printRef,
+    documentTitle: selectedStudent ? `${selectedStudent.name_bn}_রেজাল্ট_কার্ড` : 'রেজাল্ট_কার্ড',
+    onAfterPrint: () => { setSelectedStudent(null); setSelectedResult(null); }
+  });
 
   useEffect(() => {
     if (params?.id) fetchSchoolData(params.id as string);
@@ -21,11 +31,17 @@ export default function SchoolDetailPage() {
   const fetchSchoolData = async (id: string) => {
     const { data: s } = await supabase.from('schools').select('*').eq('id', id).single();
     if (s) setSchool(s);
-    const { data: st } = await supabase.from('students').select('*').eq('school_id', id).order('class').order('roll');
+    const { data: st } = await supabase.from('students').select('*').eq('school_id', id).order('class').order('name_bn');
     if (st) setStudents(st);
     const { data: r } = await supabase.from('results').select('*, students!inner(name_bn, class, roll), scholarship_exams(year, title_bn)').eq('school_id', id).order('total_marks', { ascending: false });
     if (r) setResults(r);
     setLoading(false);
+  };
+
+  const viewResultCard = (student: any) => {
+    const result = results.find((r: any) => r.student_id === student.id);
+    setSelectedStudent(student);
+    setSelectedResult(result || null);
   };
 
   const getGradeName = (g: string) => {
@@ -35,7 +51,13 @@ export default function SchoolDetailPage() {
     return g;
   };
 
-  // শ্রেণীভিত্তিক গ্রুপিং
+  const getGradeClass = (g: string) => {
+    if (g === 'Scholarship') return 'bg-yellow-100 text-yellow-800 border-yellow-400';
+    if (g === 'Talentpool') return 'bg-blue-100 text-blue-800 border-blue-400';
+    if (g === 'General') return 'bg-green-100 text-green-800 border-green-400';
+    return 'bg-red-100 text-red-800';
+  };
+
   const groupedStudents: any = {};
   students.forEach(s => {
     const cls = s.class;
@@ -48,6 +70,68 @@ export default function SchoolDetailPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* রেজাল্ট কার্ড মোডাল */}
+      {selectedStudent && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold">📋 রেজাল্ট কার্ড</h3>
+                <button onClick={() => { setSelectedStudent(null); setSelectedResult(null); }} className="text-2xl">✕</button>
+              </div>
+              
+              {/* প্রিন্ট কন্টেন্ট */}
+              <div ref={printRef} className="p-4">
+                <div className="text-center border-b-2 border-green-600 pb-4 mb-4">
+                  <h2 className="text-lg font-bold text-green-700">বাংলাদেশ কিন্ডার গার্টেন ওয়েলফেয়ার এসোসিয়েশন</h2>
+                  <p className="text-sm">বৃত্তি পরীক্ষার ফলাফল</p>
+                  {selectedResult && <p className="text-sm font-bold">{selectedResult.scholarship_exams?.title_bn} - {selectedResult.scholarship_exams?.year}</p>}
+                </div>
+
+                <div className="space-y-2 mb-4 text-sm">
+                  <div className="flex justify-between border-b py-1"><span className="font-semibold">নাম</span><span>{selectedStudent.name_bn}</span></div>
+                  <div className="flex justify-between border-b py-1"><span className="font-semibold">পিতা</span><span>{selectedStudent.father_name || '-'}</span></div>
+                  <div className="flex justify-between border-b py-1"><span className="font-semibold">মাতা</span><span>{selectedStudent.mother_name || '-'}</span></div>
+                  <div className="flex justify-between border-b py-1"><span className="font-semibold">বিদ্যালয়</span><span>{school.name_bn}</span></div>
+                  <div className="flex justify-between border-b py-1"><span className="font-semibold">শ্রেণি</span><span>{classNames[selectedStudent.class]}</span></div>
+                  <div className="flex justify-between border-b py-1"><span className="font-semibold">রোল</span><span className="font-bold text-green-700">{selectedResult?.students?.roll || 'অনিবন্ধিত'}</span></div>
+                </div>
+
+                {selectedResult ? (
+                  <>
+                    <table className="w-full text-sm mb-4 border">
+                      <thead><tr className="bg-green-600 text-white"><th className="p-2 border">বাংলা</th><th className="p-2 border">ইংরেজি</th><th className="p-2 border">গণিত</th>{selectedResult.subject_count >= 4 && <th className="p-2 border">সাঃ/বিঃ</th>}</tr></thead>
+                      <tbody><tr className="text-center font-semibold"><td className="p-2 border">{selectedResult.bangla_marks || '-'}</td><td className="p-2 border">{selectedResult.english_marks || '-'}</td><td className="p-2 border">{selectedResult.math_marks || '-'}</td>{selectedResult.subject_count >= 4 && <td className="p-2 border">{selectedResult.science_marks || '-'}</td>}</tr></tbody>
+                    </table>
+                    <div className="grid grid-cols-2 gap-4 text-center">
+                      <div className="bg-green-50 rounded-lg p-3">
+                        <p className="text-xs text-gray-600">মোট নম্বর</p>
+                        <p className="text-2xl font-bold text-green-700">{selectedResult.total_marks}</p>
+                      </div>
+                      <div className={`rounded-lg p-3 ${getGradeClass(selectedResult.grade)}`}>
+                        <p className="text-xs">গ্রেড</p>
+                        <p className="text-xl font-bold">{getGradeName(selectedResult.grade)}</p>
+                      </div>
+                    </div>
+                    {selectedResult.rank && (
+                      <p className="text-center mt-3 font-bold text-lg">🏅 মেধাক্রম: {selectedResult.rank}</p>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-center py-4 text-gray-500">ফলাফল এখনো প্রকাশিত হয়নি</div>
+                )}
+              </div>
+
+              <div className="flex gap-3 mt-4">
+                <button onClick={() => handlePrint()} className="flex-1 bg-blue-600 text-white py-2 rounded-lg font-bold hover:bg-blue-700">🖨️ প্রিন্ট</button>
+                <button onClick={() => { setSelectedStudent(null); setSelectedResult(null); }} className="flex-1 bg-gray-300 py-2 rounded-lg font-bold">বন্ধ</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* মূল পেজ */}
       <div className="bg-gradient-to-r from-green-600 to-emerald-700 text-white py-12">
         <div className="container mx-auto px-4">
           <Link href="/schools" className="text-green-200 hover:text-white mb-4 inline-block">← স্কুল তালিকায় ফিরুন</Link>
@@ -56,9 +140,6 @@ export default function SchoolDetailPage() {
         </div>
       </div>
       <div className="container mx-auto px-4 py-8">
-        <div className="flex justify-end mb-6 no-print">
-          <button onClick={() => window.print()} className="bg-blue-600 text-white px-6 py-3 rounded-lg font-bold">🖨️ PDF / প্রিন্ট</button>
-        </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="bg-white rounded-xl shadow p-6">
             <h2 className="text-xl font-bold mb-4 border-b pb-2">প্রতিষ্ঠানের তথ্য</h2>
@@ -71,53 +152,38 @@ export default function SchoolDetailPage() {
             </div>
           </div>
           <div className="md:col-span-2 space-y-8">
-            {/* শ্রেণীভিত্তিক শিক্ষার্থী তালিকা */}
             {[1,2,3,4,5].map(cls => {
               const list = groupedStudents[String(cls)] || [];
               if (list.length === 0) return null;
               return (
                 <div key={cls} className="bg-white rounded-xl shadow">
-                  <div className="p-6 border-b bg-green-50">
-                    <h2 className="text-xl font-bold text-green-700">{classNames[String(cls)]} শ্রেণী</h2>
-                    <p className="text-sm text-gray-600 mt-1">মোট {list.length} জন শিক্ষার্থী</p>
-                  </div>
+                  <div className="p-6 border-b bg-green-50"><h2 className="text-xl font-bold text-green-700">{classNames[String(cls)]} শ্রেণী</h2><p className="text-sm text-gray-600 mt-1">মোট {list.length} জন</p></div>
                   <div className="overflow-x-auto">
                     <table className="w-full">
-                      <thead>
-                        <tr className="bg-gray-50">
-                          <th className="p-4 text-left">ক্রমিক</th>
-                          <th className="p-4 text-left">নাম</th>
-                          <th className="p-4 text-left">রোল নম্বর</th>
-                          <th className="p-4 text-left">লিঙ্গ</th>
-                        </tr>
-                      </thead>
+                      <thead><tr className="bg-gray-50"><th className="p-4 text-left">ক্রমিক</th><th className="p-4 text-left">নাম</th><th className="p-4 text-left">লিঙ্গ</th><th className="p-4 text-left">ফলাফল</th></tr></thead>
                       <tbody>
-                        {list.map((s: any, i: number) => (
-                          <tr key={s.id} className="border-t hover:bg-gray-50">
-                            <td className="p-4">{i + 1}</td>
-                            <td className="p-4 font-semibold">{s.name_bn}</td>
-                            <td className="p-4">{s.roll}</td>
-                            <td className="p-4">{s.gender === 'male' ? 'ছেলে' : 'মেয়ে'}</td>
-                          </tr>
-                        ))}
+                        {list.map((s: any, i: number) => {
+                          const hasResult = results.find((r: any) => r.student_id === s.id);
+                          return (
+                            <tr key={s.id} className="border-t hover:bg-gray-50">
+                              <td className="p-4">{i + 1}</td>
+                              <td className="p-4 font-semibold">{s.name_bn}</td>
+                              <td className="p-4">{s.gender === 'male' ? 'ছেলে' : 'মেয়ে'}</td>
+                              <td className="p-4">
+                                <button onClick={() => viewResultCard(s)}
+                                  className={`px-4 py-1 rounded-full text-sm font-bold ${hasResult ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-500'}`}>
+                                  {hasResult ? '📋 রেজাল্ট কার্ড' : 'অপেক্ষমান'}
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
                 </div>
               );
             })}
-            {/* ফলাফল */}
-            {results.length > 0 && (
-              <div className="bg-white rounded-xl shadow">
-                <div className="p-6 border-b"><h2 className="text-xl font-bold">বিদ্যালয়ের ফলাফল</h2></div>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead><tr className="bg-gray-50"><th className="p-4 text-left">রোল</th><th className="p-4 text-left">নাম</th><th className="p-4 text-left">শ্রেণি</th><th className="p-4 text-left">বছর</th><th className="p-4 text-left">নম্বর</th><th className="p-4 text-left">গ্রেড</th></tr></thead>
-                    <tbody>{results.map((r: any) => (<tr key={r.id} className="border-t hover:bg-gray-50"><td className="p-4">{r.students?.roll}</td><td className="p-4">{r.students?.name_bn}</td><td className="p-4">{r.students?.class}য়</td><td className="p-4">{r.scholarship_exams?.year}</td><td className="p-4 font-bold">{r.total_marks}</td><td className="p-4"><span className={`px-3 py-1 rounded-full text-xs font-bold ${r.grade==='Scholarship'?'bg-yellow-100 text-yellow-800':r.grade==='Talentpool'?'bg-blue-100 text-blue-800':'bg-green-100 text-green-800'}`}>{getGradeName(r.grade)}</span></td></tr>))}</tbody>
-                  </table>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>
