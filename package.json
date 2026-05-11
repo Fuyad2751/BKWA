@@ -8,10 +8,11 @@
     "start": "next start",
     "lint": "eslint"
   },
-  "dependencies": {
+ "dependencies": {
     "@hookform/resolvers": "^3.9.1",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.49.1",
+    "class-variance-authority": "^0.7.1",
     "date-fns": "^3.6.0",
     "jspdf": "^2.5.2",
     "jspdf-autotable": "^3.8.3",
@@ -27,7 +28,7 @@
     "sonner": "^1.7.1",
     "xlsx": "^0.18.5",
     "zod": "^3.24.1"
-  },
+},
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
