@@ -155,7 +155,7 @@ export default function MeritListPage() {
                             <span className="font-bold text-lg text-gray-600">{index + 1}</span>
                           )}
                         </td>
-                        <td className="p-4 font-semibold text-green-700">{student.students?.roll}</td>
+                        <td className="p-4 font-semibold text-green-700">{student.exam_roll || student.students?.roll || '-'}</td>
                         <td className="p-4 font-bold">{student.students?.name_bn}</td>
                         <td className="p-4">{student.students?.class}য়</td>
                         <td className="p-4 text-gray-600">{student.schools?.name_bn}</td>
