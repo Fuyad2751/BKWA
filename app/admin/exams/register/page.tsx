@@ -16,7 +16,6 @@ export default function ExamRegistration() {
   const [existingRegs, setExistingRegs] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
-  const [startRoll, setStartRoll] = useState("101");
 
   useEffect(() => {
     loadData();
@@ -66,25 +65,6 @@ export default function ExamRegistration() {
   const handleExamChange = (examId: string) => {
     setSelectedExam(examId);
     if (examId && selectedSchool) loadStudents(selectedSchool);
-  };
-
-  const autoAssignRoll = () => {
-    const updated = [...students];
-    let rollNum = parseInt(startRoll);
-    
-    // ক্লাস অনুযায়ী সাজানো
-    updated.sort((a, b) => {
-      if (a.class !== b.class) return parseInt(a.class) - parseInt(b.class);
-      return a.name_bn.localeCompare(b.name_bn);
-    });
-
-    updated.forEach(s => {
-      if (!s.registered) {
-        s.assignedRoll = String(rollNum);
-        rollNum++;
-      }
-    });
-    setStudents(updated);
   };
 
   const updateRoll = (index: number, value: string) => {
@@ -167,18 +147,7 @@ export default function ExamRegistration() {
 
             {students.length > 0 && (
               <>
-                <div className="flex gap-4 mb-4 items-end">
-                  <div>
-                    <label className="block text-sm font-semibold mb-1">শুরুর রোল</label>
-                    <input type="number" value={startRoll} onChange={(e) => setStartRoll(e.target.value)}
-                      className="w-24 p-2 border rounded" />
-                  </div>
-                  <button onClick={autoAssignRoll}
-                    className="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-700">
-                    🔄 অটো রোল অ্যাসাইন
-                  </button>
-                </div>
-
+             
                 <div className="overflow-x-auto mb-6">
                   <table className="w-full border text-sm">
                     <thead>
