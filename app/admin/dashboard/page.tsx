@@ -62,6 +62,9 @@ export default function AdminDashboard() {
           <Link href="/admin/exams/add" className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800">📝 পরীক্ষা যোগ</Link>
           <Link href="/admin/results/upload" className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800">📊 ফলাফল আপলোড</Link>
           <Link href="/admin/merit-list" className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800">🏆 মেরিট লিস্ট</Link>
+          <Link href="/admin/analytics" className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800">📈 অ্যানালিটিক্স</Link>
+          <Link href="/admin/notices" className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800">📢 নোটিশ</Link>
+          <Link href="/admin/gallery" className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800">📸 গ্যালারি</Link>
           <button onClick={handleLogout} className="flex items-center gap-3 p-3 rounded-lg hover:bg-red-600 w-full mt-4 border-t border-gray-700 pt-4">🚪 লগআউট</button>
         </nav>
       </div>
