@@ -24,13 +24,44 @@ export default function SchoolDetailPage() {
     const { data: s } = await supabase.from('schools').select('*').eq('id', id).single();
     if (s) setSchool(s);
 
-    // শিক্ষার্থী + তাদের রোল (exam_registrations থেকে)
     const { data: st } = await supabase
-      .from('students')
-      .select('*, exam_registrations!inner(roll)')
-      .eq('school_id', id)
-      .order('class')
-      .order('name_bn');
+  .from('students')
+  .select('*')
+  .eq('school_id', id)
+  .order('class')
+  .order('name_bn');
+
+// আলাদাভাবে exam_registrations fetch করুন
+if (st) {
+  // সর্বশেষ পরীক্ষা খুঁজুন
+  const { data: latestExam } = await supabase
+    .from('scholarship_exams')
+    .select('id')
+    .eq('status', 'published')
+    .order('year', { ascending: false })
+    .limit(1)
+    .single();
+
+  if (latestExam) {
+    const { data: registrations } = await supabase
+      .from('exam_registrations')
+      .select('student_id, roll')
+      .eq('exam_id', latestExam.id)
+      .eq('school_id', id);
+
+    const rollMap: any = {};
+    registrations?.forEach((r: any) => { rollMap[r.student_id] = r.roll; });
+
+    const mapped = st.map((student: any) => ({
+      ...student,
+      exam_roll: rollMap[student.id] || 'অনিবন্ধিত'
+    }));
+    setStudents(mapped);
+  } else {
+    const mapped = st.map((student: any) => ({ ...student, exam_roll: 'অনিবন্ধিত' }));
+    setStudents(mapped);
+  }
+}
     
     if (st) {
       const mapped = st.map((student: any) => ({
