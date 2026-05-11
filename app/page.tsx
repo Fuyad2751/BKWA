@@ -189,36 +189,6 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-
-      {/* ========== সকল প্রতিষ্ঠান ========== */}
-      <section className="container mx-auto px-4 py-20">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">অংশগ্রহণকারী প্রতিষ্ঠানসমূহ</h2>
-          <p className="text-gray-600 max-w-2xl mx-auto">আমাদের সাথে যুক্ত সকল শিক্ষা প্রতিষ্ঠান</p>
-        </div>
-        
-        {realSchools.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {realSchools.map((school) => (
-              <Link key={school.id} href={`/schools/${school.id}`} className="group">
-                <div className="bg-white rounded-2xl shadow-lg p-8 text-center hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 border-t-4 border-green-500">
-                  <div className="text-5xl mb-4">🏫</div>
-                  <h3 className="text-xl font-bold text-gray-800 mb-2 group-hover:text-green-600 transition">{school.name_bn}</h3>
-                  {school.eiin && <p className="text-sm text-gray-500">EIIN: {school.eiin}</p>}
-                  {school.phone && <p className="text-sm text-gray-500">📞 {school.phone}</p>}
-                  <div className="mt-4 text-green-600 font-semibold group-hover:underline">বিস্তারিত দেখুন →</div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-12">
-            <div className="text-4xl mb-4">📭</div>
-            <p className="text-xl text-gray-600">এখনো কোনো স্কুল যোগ করা হয়নি</p>
-          </div>
-        )}
-      </section>
-
       {/* ========== CTA ========== */}
       <section className="bg-gradient-to-r from-green-600 to-emerald-700 text-white py-20">
         <div className="container mx-auto px-4 text-center">
