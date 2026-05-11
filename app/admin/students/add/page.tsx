@@ -17,7 +17,6 @@ export default function AddStudent() {
     father_name: "",
     mother_name: "",
     class: "1",
-    roll: "",
     gender: "male",
     phone: ""
   });
@@ -53,7 +52,6 @@ export default function AddStudent() {
         father_name: formData.father_name,
         mother_name: formData.mother_name,
         class: formData.class,
-        roll: formData.roll,
         gender: formData.gender,
         phone: formData.phone
       }])
@@ -128,15 +126,7 @@ export default function AddStudent() {
                     onChange={(e) => setFormData({...formData, name_bn: e.target.value})}
                     className="w-full p-3 border rounded-lg" placeholder="শিক্ষার্থীর নাম" />
                 </div>
-
-                {/* রোল */}
-                <div>
-                  <label className="block text-gray-700 font-semibold mb-2">রোল নম্বর *</label>
-                  <input type="text" required value={formData.roll}
-                    onChange={(e) => setFormData({...formData, roll: e.target.value})}
-                    className="w-full p-3 border rounded-lg" placeholder="যেমন: 101" />
-                </div>
-
+                
                 {/* শ্রেণি */}
                 <div>
                   <label className="block text-gray-700 font-semibold mb-2">শ্রেণি *</label>
