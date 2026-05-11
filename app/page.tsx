@@ -81,6 +81,7 @@ export default function HomePage() {
             <Link href="/results" className="text-gray-600 hover:text-green-600 transition">ফলাফল</Link>
             <Link href="/merit-list" className="text-gray-600 hover:text-green-600 transition">মেরিট লিস্ট</Link>
             <Link href="/scholarship" className="text-gray-600 hover:text-green-600 transition">স্কলারশিপ</Link>
+            <Link href="/certificates" className="text-gray-600 hover:text-green-600 transition">সার্টিফিকেট</Link>
             <Link href="/results" className="bg-green-600 text-white px-6 py-2 rounded-full font-semibold hover:bg-green-700 transition shadow-lg shadow-green-200">
               ফলাফল দেখুন
             </Link>
