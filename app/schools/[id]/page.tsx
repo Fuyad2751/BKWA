@@ -24,51 +24,43 @@ export default function SchoolDetailPage() {
     const { data: s } = await supabase.from('schools').select('*').eq('id', id).single();
     if (s) setSchool(s);
 
+    // শিক্ষার্থী লোড
     const { data: st } = await supabase
-  .from('students')
-  .select('*')
-  .eq('school_id', id)
-  .order('class')
-  .order('name_bn');
+      .from('students')
+      .select('*')
+      .eq('school_id', id)
+      .order('class')
+      .order('name_bn');
 
-// আলাদাভাবে exam_registrations fetch করুন
-if (st) {
-  // সর্বশেষ পরীক্ষা খুঁজুন
-  const { data: latestExam } = await supabase
-    .from('scholarship_exams')
-    .select('id')
-    .in('status', ['published', 'completed'])
-    .order('year', { ascending: false })
-    .limit(1)
-    .single();
-
-  if (latestExam) {
-    const { data: registrations } = await supabase
-      .from('exam_registrations')
-      .select('student_id, roll')
-      .eq('exam_id', latestExam.id)
-      .eq('school_id', id);
-
-    const rollMap: any = {};
-    registrations?.forEach((r: any) => { rollMap[r.student_id] = r.roll; });
-
-    const mapped = st.map((student: any) => ({
-      ...student,
-      exam_roll: rollMap[student.id] || 'অনিবন্ধিত'
-    }));
-    setStudents(mapped);
-  } else {
-    const mapped = st.map((student: any) => ({ ...student, exam_roll: 'অনিবন্ধিত' }));
-    setStudents(mapped);
-  }
-}
-    
     if (st) {
-      const mapped = st.map((student: any) => ({
-        ...student,
-        exam_roll: student.exam_registrations?.roll || 'অনিবন্ধিত'
-      }));
-      setStudents(mapped);
+      // সর্বশেষ পরীক্ষা (published বা completed)
+      const { data: latestExam } = await supabase
+        .from('scholarship_exams')
+        .select('id')
+        .in('status', ['published', 'completed'])
+        .order('year', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (latestExam) {
+        const { data: registrations } = await supabase
+          .from('exam_registrations')
+          .select('student_id, roll')
+          .eq('exam_id', latestExam.id)
+          .eq('school_id', id);
+
+        const rollMap: any = {};
+        registrations?.forEach((r: any) => { rollMap[r.student_id] = r.roll; });
+
+        const mapped = st.map((student: any) => ({
+          ...student,
+          exam_roll: rollMap[student.id] || 'অনিবন্ধিত'
+        }));
+        setStudents(mapped);
+      } else {
+        const mapped = st.map((student: any) => ({ ...student, exam_roll: 'অনিবন্ধিত' }));
+        setStudents(mapped);
+      }
     }
 
     // ফলাফল
@@ -107,7 +99,6 @@ if (st) {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* রেজাল্ট কার্ড মোডাল */}
       {selectedStudent && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 no-print">
           <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
@@ -155,7 +146,6 @@ if (st) {
         </div>
       )}
 
-      {/* মূল পেজ */}
       <div className="bg-gradient-to-r from-green-600 to-emerald-700 text-white py-12">
         <div className="container mx-auto px-4">
           <Link href="/schools" className="text-green-200 hover:text-white mb-4 inline-block">← স্কুল তালিকায় ফিরুন</Link>
