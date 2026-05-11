@@ -100,51 +100,112 @@ export default function SchoolDetailPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {selectedStudent && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 no-print">
-          <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4 no-print">
-                <h3 className="text-xl font-bold">📋 রেজাল্ট কার্ড</h3>
-                <button onClick={() => { setSelectedStudent(null); setSelectedResult(null); }} className="text-2xl">✕</button>
-              </div>
-              <div id="printable-area" className="p-4">
-                <div className="text-center border-b-2 border-green-600 pb-4 mb-4">
-                  <h2 className="text-lg font-bold text-green-700">বাংলাদেশ কিন্ডার গার্টেন ওয়েলফেয়ার এসোসিয়েশন</h2>
-                  <p className="text-sm">বৃত্তি পরীক্ষার ফলাফল</p>
-                  {selectedResult && <p className="text-sm font-bold">{selectedResult.scholarship_exams?.title_bn} - {selectedResult.scholarship_exams?.year}</p>}
-                </div>
-                <div className="space-y-2 mb-4 text-sm">
-                  <div className="flex justify-between border-b py-1"><span className="font-semibold">নাম</span><span>{selectedStudent.name_bn}</span></div>
-                  <div className="flex justify-between border-b py-1"><span className="font-semibold">পিতা</span><span>{selectedStudent.father_name || '-'}</span></div>
-                  <div className="flex justify-between border-b py-1"><span className="font-semibold">মাতা</span><span>{selectedStudent.mother_name || '-'}</span></div>
-                  <div className="flex justify-between border-b py-1"><span className="font-semibold">বিদ্যালয়</span><span>{school.name_bn}</span></div>
-                  <div className="flex justify-between border-b py-1"><span className="font-semibold">শ্রেণি</span><span>{classNames[selectedStudent.class]}</span></div>
-                  <div className="flex justify-between border-b py-1"><span className="font-semibold">রোল</span><span className="font-bold text-green-700">{selectedStudent.exam_roll || 'অনিবন্ধিত'}</span></div>
-                </div>
-                {selectedResult ? (
-                  <>
-                    <table className="w-full text-sm mb-4 border">
-                      <thead><tr className="bg-green-600 text-white"><th className="p-2 border">বাংলা</th><th className="p-2 border">ইংরেজি</th><th className="p-2 border">গণিত</th>{selectedResult.subject_count >= 4 && <th className="p-2 border">সাঃ/বিঃ</th>}</tr></thead>
-                      <tbody><tr className="text-center font-semibold"><td className="p-2 border">{selectedResult.bangla_marks || '-'}</td><td className="p-2 border">{selectedResult.english_marks || '-'}</td><td className="p-2 border">{selectedResult.math_marks || '-'}</td>{selectedResult.subject_count >= 4 && <td className="p-2 border">{selectedResult.science_marks || '-'}</td>}</tr></tbody>
-                    </table>
-                    <div className="grid grid-cols-2 gap-4 text-center">
-                      <div className="bg-green-50 rounded-lg p-3"><p className="text-xs text-gray-600">মোট নম্বর</p><p className="text-2xl font-bold text-green-700">{selectedResult.total_marks}</p></div>
-                      <div className={`rounded-lg p-3 border ${selectedResult.grade === 'Scholarship' ? 'bg-yellow-100 text-yellow-800' : selectedResult.grade === 'Talentpool' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}><p className="text-xs">গ্রেড</p><p className="text-xl font-bold">{getGradeName(selectedResult.grade)}</p></div>
-                    </div>
-                    {selectedResult.rank && <p className="text-center mt-3 font-bold text-lg">🏅 মেধাক্রম: {selectedResult.rank}</p>}
-                  </>
-                ) : (
-                  <div className="text-center py-4 text-gray-500">ফলাফল এখনো প্রকাশিত হয়নি</div>
-                )}
-              </div>
-              <div className="flex gap-3 mt-4 no-print">
-                <button onClick={() => window.print()} className="flex-1 bg-blue-600 text-white py-2 rounded-lg font-bold">🖨️ প্রিন্ট</button>
-                <button onClick={() => { setSelectedStudent(null); setSelectedResult(null); }} className="flex-1 bg-gray-300 py-2 rounded-lg font-bold">বন্ধ</button>
-              </div>
-            </div>
+  <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 no-print" onClick={() => { setSelectedStudent(null); setSelectedResult(null); }}>
+    <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
+      {/* হেডার */}
+      <div className="bg-gradient-to-r from-green-600 to-emerald-700 text-white p-6 rounded-t-2xl">
+        <div className="flex justify-between items-center">
+          <h3 className="text-2xl font-bold">📋 রেজাল্ট কার্ড</h3>
+          <button onClick={() => { setSelectedStudent(null); setSelectedResult(null); }} className="text-white text-2xl hover:bg-white/20 rounded-full w-8 h-8 flex items-center justify-center">✕</button>
+        </div>
+        {selectedResult && <p className="text-green-100 mt-1">{selectedResult.scholarship_exams?.title_bn} - {selectedResult.scholarship_exams?.year}</p>}
+      </div>
+
+      <div className="p-6">
+        {/* ছাত্র তথ্য */}
+        <div className="bg-gray-50 rounded-xl p-4 mb-6">
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div><span className="text-gray-500">শিক্ষার্থীর নাম</span><p className="font-bold text-gray-800 text-lg">{selectedStudent.name_bn}</p></div>
+            <div><span className="text-gray-500">রোল নম্বর</span><p className="font-bold text-green-700 text-lg">{selectedStudent.exam_roll || selectedStudent.roll || '-'}</p></div>
+            <div><span className="text-gray-500">পিতার নাম</span><p className="font-semibold">{selectedStudent.father_name || '-'}</p></div>
+            <div><span className="text-gray-500">মাতার নাম</span><p className="font-semibold">{selectedStudent.mother_name || '-'}</p></div>
+            <div><span className="text-gray-500">বিদ্যালয়</span><p className="font-semibold">{school.name_bn}</p></div>
+            <div><span className="text-gray-500">শ্রেণি</span><p className="font-semibold">{classNames[selectedStudent.class]}</p></div>
           </div>
         </div>
-      )}
+
+        {selectedResult ? (
+          <>
+            {/* বিষয়ভিত্তিক নম্বর */}
+            <h4 className="font-bold text-gray-800 mb-3">📊 বিষয়ভিত্তিক নম্বর</h4>
+            <div className="grid grid-cols-2 gap-3 mb-6">
+              <div className="bg-blue-50 rounded-lg p-4 text-center">
+                <p className="text-sm text-gray-600">বাংলা</p>
+                <p className="text-2xl font-bold text-blue-700">{selectedResult.bangla_marks || 0}</p>
+                <p className={`text-xs font-bold mt-1 ${(selectedResult.bangla_marks || 0) >= 33 ? 'text-green-600' : 'text-red-600'}`}>
+                  {(selectedResult.bangla_marks || 0) >= 33 ? '✅ পাস' : '❌ ফেল'}
+                </p>
+              </div>
+              <div className="bg-purple-50 rounded-lg p-4 text-center">
+                <p className="text-sm text-gray-600">ইংরেজি</p>
+                <p className="text-2xl font-bold text-purple-700">{selectedResult.english_marks || 0}</p>
+                <p className={`text-xs font-bold mt-1 ${(selectedResult.english_marks || 0) >= 33 ? 'text-green-600' : 'text-red-600'}`}>
+                  {(selectedResult.english_marks || 0) >= 33 ? '✅ পাস' : '❌ ফেল'}
+                </p>
+              </div>
+              <div className="bg-orange-50 rounded-lg p-4 text-center">
+                <p className="text-sm text-gray-600">গণিত</p>
+                <p className="text-2xl font-bold text-orange-700">{selectedResult.math_marks || 0}</p>
+                <p className={`text-xs font-bold mt-1 ${(selectedResult.math_marks || 0) >= 33 ? 'text-green-600' : 'text-red-600'}`}>
+                  {(selectedResult.math_marks || 0) >= 33 ? '✅ পাস' : '❌ ফেল'}
+                </p>
+              </div>
+              {/* ৩-৫ শ্রেণীর জন্য সমাজ/বিজ্ঞান */}
+              {(selectedResult.subject_count >= 4 || parseInt(selectedStudent.class) >= 3) && (
+                <div className="bg-teal-50 rounded-lg p-4 text-center">
+                  <p className="text-sm text-gray-600">সমাজ/বিজ্ঞান</p>
+                  <p className="text-2xl font-bold text-teal-700">{selectedResult.science_marks || 0}</p>
+                  <p className={`text-xs font-bold mt-1 ${(selectedResult.science_marks || 0) >= 33 ? 'text-green-600' : 'text-red-600'}`}>
+                    {(selectedResult.science_marks || 0) >= 33 ? '✅ পাস' : '❌ ফেল'}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* ফলাফল সারাংশ */}
+            <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border border-green-200">
+              <div className="grid grid-cols-3 gap-4 text-center">
+                <div>
+                  <p className="text-sm text-gray-600">মোট নম্বর</p>
+                  <p className="text-3xl font-bold text-green-700">{selectedResult.total_marks}</p>
+                  <p className="text-xs text-gray-500">/১০০</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">গ্রেড</p>
+                  <span className={`inline-block mt-1 px-4 py-1 rounded-full text-lg font-bold ${
+                    selectedResult.grade === 'Scholarship' ? 'bg-yellow-100 text-yellow-800' :
+                    selectedResult.grade === 'Talentpool' ? 'bg-blue-100 text-blue-800' :
+                    selectedResult.grade === 'General' ? 'bg-green-100 text-green-800' :
+                    'bg-red-100 text-red-800'
+                  }`}>{getGradeName(selectedResult.grade)}</span>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">মেধাক্রম</p>
+                  <p className="text-3xl font-bold text-yellow-600">{selectedResult.rank ? `🏅 ${selectedResult.rank}` : '-'}</p>
+                </div>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            <div className="text-5xl mb-4">📭</div>
+            <p className="text-xl">ফলাফল এখনো প্রকাশিত হয়নি</p>
+          </div>
+        )}
+
+        {/* বাটন */}
+        <div className="flex gap-3 mt-6">
+          <button onClick={() => window.print()} className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 flex items-center justify-center gap-2">
+            🖨️ প্রিন্ট / PDF
+          </button>
+          <button onClick={() => { setSelectedStudent(null); setSelectedResult(null); }} className="flex-1 bg-gray-300 text-gray-700 py-3 rounded-lg font-bold hover:bg-gray-400">
+            বন্ধ করুন
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
 
       <div className="bg-gradient-to-r from-green-600 to-emerald-700 text-white py-12">
         <div className="container mx-auto px-4">
