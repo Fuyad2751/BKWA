@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { useReactToPrint } from 'react-to-print';
 
 const classNames: any = { '1': 'প্রথম', '2': 'দ্বিতীয়', '3': 'তৃতীয়', '4': 'চতুর্থ', '5': 'পঞ্চম' };
 
@@ -16,13 +15,10 @@ export default function SchoolDetailPage() {
   const [loading, setLoading] = useState(true);
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
   const [selectedResult, setSelectedResult] = useState<any>(null);
-  const printRef = useRef<HTMLDivElement>(null);
 
-  const handlePrint = useReactToPrint({
-    contentRef: printRef,
-    documentTitle: selectedStudent ? `${selectedStudent.name_bn}_রেজাল্ট_কার্ড` : 'রেজাল্ট_কার্ড',
-    onAfterPrint: () => { setSelectedStudent(null); setSelectedResult(null); }
-  });
+  const handlePrint = () => {
+    window.print();
+  };
 
   useEffect(() => {
     if (params?.id) fetchSchoolData(params.id as string);
@@ -72,16 +68,15 @@ export default function SchoolDetailPage() {
     <div className="min-h-screen bg-gray-50">
       {/* রেজাল্ট কার্ড মোডাল */}
       {selectedStudent && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 no-print">
           <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
+              <div className="flex justify-between items-center mb-4 no-print">
                 <h3 className="text-xl font-bold">📋 রেজাল্ট কার্ড</h3>
                 <button onClick={() => { setSelectedStudent(null); setSelectedResult(null); }} className="text-2xl">✕</button>
               </div>
               
-              {/* প্রিন্ট কন্টেন্ট */}
-              <div ref={printRef} className="p-4">
+              <div id="printable-area" className="p-4">
                 <div className="text-center border-b-2 border-green-600 pb-4 mb-4">
                   <h2 className="text-lg font-bold text-green-700">বাংলাদেশ কিন্ডার গার্টেন ওয়েলফেয়ার এসোসিয়েশন</h2>
                   <p className="text-sm">বৃত্তি পরীক্ষার ফলাফল</p>
@@ -108,7 +103,7 @@ export default function SchoolDetailPage() {
                         <p className="text-xs text-gray-600">মোট নম্বর</p>
                         <p className="text-2xl font-bold text-green-700">{selectedResult.total_marks}</p>
                       </div>
-                      <div className={`rounded-lg p-3 ${getGradeClass(selectedResult.grade)}`}>
+                      <div className={`rounded-lg p-3 border ${getGradeClass(selectedResult.grade)}`}>
                         <p className="text-xs">গ্রেড</p>
                         <p className="text-xl font-bold">{getGradeName(selectedResult.grade)}</p>
                       </div>
@@ -122,8 +117,8 @@ export default function SchoolDetailPage() {
                 )}
               </div>
 
-              <div className="flex gap-3 mt-4">
-                <button onClick={() => handlePrint()} className="flex-1 bg-blue-600 text-white py-2 rounded-lg font-bold hover:bg-blue-700">🖨️ প্রিন্ট</button>
+              <div className="flex gap-3 mt-4 no-print">
+                <button onClick={handlePrint} className="flex-1 bg-blue-600 text-white py-2 rounded-lg font-bold hover:bg-blue-700">🖨️ প্রিন্ট</button>
                 <button onClick={() => { setSelectedStudent(null); setSelectedResult(null); }} className="flex-1 bg-gray-300 py-2 rounded-lg font-bold">বন্ধ</button>
               </div>
             </div>
@@ -187,6 +182,14 @@ export default function SchoolDetailPage() {
           </div>
         </div>
       </div>
+      
+      <style jsx>{`
+        @media print {
+          .no-print { display: none !important; }
+          body { background: white !important; }
+          #printable-area { padding: 20px; }
+        }
+      `}</style>
     </div>
   );
 }
