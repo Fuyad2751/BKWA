@@ -55,7 +55,7 @@ export default function MeritListPage() {
         .from('results')
         .select(`
           *,
-          students(name_bn, class, roll),
+          students(name_bn, class),
           schools(name_bn)
         `)
         .eq('exam_id', exams[0].id)
