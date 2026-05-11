@@ -8,8 +8,9 @@
     "start": "next start",
     "lint": "eslint"
   },
- "dependencies": {
+"dependencies": {
     "@hookform/resolvers": "^3.9.1",
+    "@radix-ui/react-slot": "^1.1.1",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.49.1",
     "class-variance-authority": "^0.7.1",
