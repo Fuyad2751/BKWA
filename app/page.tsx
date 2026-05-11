@@ -141,7 +141,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ========== আসন্ন পরীক্ষা ========== */}
+           {/* ========== আসন্ন পরীক্ষা ========== */}
       {upcomingExams.length > 0 && (
         <section className="bg-white py-16">
           <div className="container mx-auto px-4">
@@ -163,6 +163,9 @@ export default function HomePage() {
           </div>
         </section>
       )}
+
+      {/* ========== ক্যালেন্ডার উইজেট ========== */}
+      <CalendarWidget />
 
       {/* ========== নোটিশ বোর্ড ========== */}
       {notices.length > 0 && (
@@ -234,5 +237,67 @@ export default function HomePage() {
         </div>
       </footer>
     </div>
+  );
+function CalendarWidget() {
+  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
+  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+  const [events, setEvents] = useState<any[]>([]);
+
+  const BENGALI_MONTHS = ['জানুয়ারি', 'ফেব্রুয়ারি', 'মার্চ', 'এপ্রিল', 'মে', 'জুন', 'জুলাই', 'আগস্ট', 'সেপ্টেম্বর', 'অক্টোবর', 'নভেম্বর', 'ডিসেম্বর'];
+  const BENGALI_DAYS = ['রবি', 'সোম', 'মঙ্গল', 'বুধ', 'বৃহঃ', 'শুক্র', 'শনি'];
+
+  useEffect(() => { 
+    supabase.from('scholarship_exams').select('*').then(({ data }) => { if (data) setEvents(data); });
+  }, []);
+
+  const getDaysInMonth = (y: number, m: number) => new Date(y, m + 1, 0).getDate();
+  const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+  const daysInMonth = getDaysInMonth(currentYear, currentMonth);
+  const today = new Date();
+
+  const getEventsForDate = (day: number) => {
+    return events.filter(e => {
+      if (!e.exam_date) return false;
+      const d = new Date(e.exam_date);
+      return d.getFullYear() === currentYear && d.getMonth() === currentMonth && d.getDate() === day;
+    });
+  };
+
+  return (
+    <section className="bg-gray-50 py-16">
+      <div className="container mx-auto px-4 max-w-md">
+        <div className="text-center mb-6">
+          <h2 className="text-2xl font-bold text-gray-800">📅 ক্যালেন্ডার</h2>
+        </div>
+        <div className="bg-white rounded-2xl shadow-lg overflow-hidden border">
+          <div className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white p-4 flex justify-between items-center">
+            <button onClick={() => { if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(currentYear - 1); } else setCurrentMonth(currentMonth - 1); }} className="text-xl hover:scale-110">◀</button>
+            <h3 className="text-lg font-bold">{BENGALI_MONTHS[currentMonth]} {currentYear}</h3>
+            <button onClick={() => { if (currentMonth === 11) { setCurrentMonth(0); setCurrentYear(currentYear + 1); } else setCurrentMonth(currentMonth + 1); }} className="text-xl hover:scale-110">▶</button>
+          </div>
+          <div className="grid grid-cols-7 bg-gray-50">
+            {BENGALI_DAYS.map(d => <div key={d} className="text-center text-xs font-bold text-gray-500 py-2 border-b">{d}</div>)}
+          </div>
+          <div className="grid grid-cols-7 p-2">
+            {Array.from({ length: firstDay }, (_, i) => <div key={`e-${i}`} className="h-16 p-1"></div>)}
+            {Array.from({ length: daysInMonth }, (_, i) => {
+              const day = i + 1;
+              const dayEvents = getEventsForDate(day);
+              const isToday = today.getDate() === day && today.getMonth() === currentMonth && today.getFullYear() === currentYear;
+              return (
+                <div key={day} className={`h-16 p-1 border rounded-lg m-0.5 cursor-pointer hover:bg-teal-50 transition overflow-hidden ${isToday ? 'border-teal-500 border-2 bg-teal-50' : 'border-gray-100'}`}
+                  title={dayEvents.map(e => e.title_bn).join(', ')}>
+                  <div className={`text-sm font-bold text-center ${isToday ? 'text-teal-600' : ''}`}>{day}</div>
+                  {dayEvents.length > 0 && <div className="flex justify-center gap-0.5 mt-1">{dayEvents.slice(0, 2).map((ev, j) => <div key={j} className={`w-1.5 h-1.5 rounded-full ${ev.status === 'upcoming' ? 'bg-blue-500' : ev.status === 'ongoing' ? 'bg-green-500' : 'bg-yellow-500'}`}></div>)}</div>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <div className="text-center mt-4">
+          <Link href="/calendar" className="text-teal-600 font-semibold hover:underline text-sm">সম্পূর্ণ ক্যালেন্ডার →</Link>
+        </div>
+      </div>
+    </section>
   );
 }
