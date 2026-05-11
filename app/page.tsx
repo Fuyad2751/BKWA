@@ -222,7 +222,7 @@ export default function HomePage() {
             <div>
               <h4 className="font-bold mb-4">যোগাযোগ</h4>
               <div className="space-y-2 text-gray-400">
-                <div>📞 +৮৮০ 1717-547312</div>
+                <div>📞 +88 1717-547312</div>
                 <div>✉️ info@bkwa.org</div>
                 <div>📍 তুলসীঘাট,গাইবান্ধা</div>
               </div>
