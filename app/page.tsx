@@ -9,83 +9,79 @@ export default function HomePage() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [realSchools, setRealSchools] = useState<any[]>([]);
   const [notices, setNotices] = useState<any[]>([]);
+  const [gallerySlides, setGallerySlides] = useState<any[]>([]);
+  const [allSlides, setAllSlides] = useState<any[]>([]);
+  const [galleryPreview, setGalleryPreview] = useState<any[]>([]);
+
+  const defaultSlides = [
+    {
+      title: "বাংলাদেশ কিন্ডার গার্টেন", subtitle: "ওয়েলফেয়ার এসোসিয়েশন",
+      desc: "প্রথম থেকে পঞ্চম শ্রেণীর শিক্ষার্থীদের মেধা বিকাশে আমরা নিবেদিত",
+      bg: "from-blue-600 via-indigo-700 to-purple-800", emoji: "🎓", type: "default"
+    },
+    {
+      title: "বৃত্তি পরীক্ষা ২০২৫", subtitle: "৩০+ স্কুলের অংশগ্রহণ",
+      desc: "মেধাবী শিক্ষার্থীদের জন্য স্কলারশিপ ও ট্যালেন্টপুল বৃত্তির ব্যবস্থা",
+      bg: "from-emerald-600 via-green-700 to-teal-800", emoji: "🏆", type: "default"
+    },
+    {
+      title: "সফলতার পথে", subtitle: "শিক্ষার মান উন্নয়নে আমরা",
+      desc: "শিক্ষার মান উন্নয়নে কাজ করে যাচ্ছে আমাদের সংগঠন",
+      bg: "from-orange-500 via-red-600 to-rose-700", emoji: "🌟", type: "default"
+    }
+  ];
 
   useEffect(() => {
-    fetchStats();
-    fetchRealSchools();
-    fetchNotices();
+    fetchAllData();
   }, []);
 
-  const fetchStats = async () => {
-    const [schoolRes, studentRes] = await Promise.all([
+  useEffect(() => {
+    if (allSlides.length > 0) {
+      const timer = setInterval(() => {
+        setCurrentSlide((prev) => (prev + 1) % allSlides.length);
+      }, 5000);
+      return () => clearInterval(timer);
+    }
+  }, [allSlides]);
+
+  const fetchAllData = async () => {
+    const [schoolRes, studentRes, noticeRes, galleryRes] = await Promise.all([
       supabase.from('schools').select('*', { count: 'exact' }),
-      supabase.from('students').select('*', { count: 'exact' })
+      supabase.from('students').select('*', { count: 'exact' }),
+      supabase.from('notices').select('*').eq('is_published', true).order('created_at', { ascending: false }).limit(3),
+      supabase.from('gallery').select('*').eq('is_published', true).order('created_at', { ascending: false })
     ]);
+
     setStats({
       schools: schoolRes.count || 0,
       students: studentRes.count || 0,
       scholars: 150,
       talentpool: 300
     });
-  };
 
-  const fetchRealSchools = async () => {
-    const { data } = await supabase
-      .from('schools')
-      .select('id, name_bn, eiin, phone')
-      .order('name_bn');
-    if (data) setRealSchools(data);
-  };
+    if (noticeRes.data) setNotices(noticeRes.data);
 
-  const fetchNotices = async () => {
-    const { data } = await supabase
-      .from('notices')
-      .select('*')
-      .eq('is_published', true)
-      .order('created_at', { ascending: false })
-      .limit(3);
-    if (data) setNotices(data);
-  };
-
-  const slides = [
-    {
-      title: "বাংলাদেশ কিন্ডার গার্টেন",
-      subtitle: "ওয়েলফেয়ার এসোসিয়েশন",
-      desc: "প্রথম থেকে পঞ্চম শ্রেণীর শিক্ষার্থীদের মেধা বিকাশে আমরা নিবেদিত",
-      bg: "from-blue-600 via-indigo-700 to-purple-800",
-      emoji: "🎓"
-    },
-    {
-      title: "বৃত্তি পরীক্ষা ২০২৫",
-      subtitle: "৩০+ স্কুলের অংশগ্রহণ",
-      desc: "মেধাবী শিক্ষার্থীদের জন্য স্কলারশিপ ও ট্যালেন্টপুল বৃত্তির ব্যবস্থা",
-      bg: "from-emerald-600 via-green-700 to-teal-800",
-      emoji: "🏆"
-    },
-    {
-      title: "সফলতার ১ বছর",
-      subtitle: "১০০০+ সফল শিক্ষার্থী",
-      desc: "দীর্ঘ এক দশক ধরে শিক্ষার মান উন্নয়নে কাজ করে যাচ্ছে আমাদের সংগঠন",
-      bg: "from-orange-500 via-red-600 to-rose-700",
-      emoji: "🌟"
+    // গ্যালারি স্লাইড
+    if (galleryRes.data && galleryRes.data.length > 0) {
+      const galleryItems = galleryRes.data.slice(0, 5).map((photo: any) => ({
+        title: photo.title_bn || "গ্যালারি",
+        subtitle: photo.category === 'event' ? 'ইভেন্ট' : photo.category === 'exam' ? 'পরীক্ষা' : photo.category === 'award' ? 'পুরস্কার' : 'অন্যান্য',
+        desc: "", bg: "from-gray-700 via-gray-800 to-gray-900", emoji: "📸", type: "gallery", image: photo.image_url
+      }));
+      setGallerySlides(galleryItems);
+      setAllSlides([...galleryItems, ...defaultSlides]);
+      setGalleryPreview(galleryRes.data.slice(0, 4));
+    } else {
+      setAllSlides(defaultSlides);
     }
-  ];
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % slides.length);
-    }, 5000);
-    return () => clearInterval(timer);
-  }, []);
+    // স্কুল
+    const { data: schoolsData } = await supabase.from('schools').select('id, name_bn, eiin, phone').order('name_bn');
+    if (schoolsData) setRealSchools(schoolsData);
+  };
 
   const getTypeIcon = (type: string) => {
-    switch(type) {
-      case 'exam': return '📝';
-      case 'result': return '📊';
-      case 'event': return '🎉';
-      case 'urgent': return '🚨';
-      default: return '📢';
-    }
+    switch(type) { case 'exam': return '📝'; case 'result': return '📊'; case 'event': return '🎉'; case 'urgent': return '🚨'; default: return '📢'; }
   };
 
   return (
@@ -97,7 +93,7 @@ export default function HomePage() {
             <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center text-white font-bold text-lg">B</div>
             <span className="text-xl font-bold text-gray-800">BKWA</span>
           </Link>
-          <div className="hidden md:flex items-center gap-8">
+          <div className="hidden md:flex items-center gap-6 text-sm">
             <Link href="/" className="text-green-600 font-semibold">হোম</Link>
             <Link href="/schools" className="text-gray-600 hover:text-green-600 transition">স্কুল</Link>
             <Link href="/results" className="text-gray-600 hover:text-green-600 transition">ফলাফল</Link>
@@ -105,54 +101,48 @@ export default function HomePage() {
             <Link href="/scholarship" className="text-gray-600 hover:text-green-600 transition">স্কলারশিপ</Link>
             <Link href="/certificates" className="text-gray-600 hover:text-green-600 transition">সার্টিফিকেট</Link>
             <Link href="/notices" className="text-gray-600 hover:text-green-600 transition">নোটিশ</Link>
-            <Link href="/results" className="bg-green-600 text-white px-6 py-2 rounded-full font-semibold hover:bg-green-700 transition shadow-lg shadow-green-200">
-              ফলাফল দেখুন
-            </Link>
+            <Link href="/gallery" className="text-gray-600 hover:text-green-600 transition">গ্যালারি</Link>
+            <Link href="/results" className="bg-green-600 text-white px-6 py-2 rounded-full font-semibold hover:bg-green-700 transition shadow-lg shadow-green-200">ফলাফল দেখুন</Link>
           </div>
           <button className="md:hidden text-2xl">☰</button>
         </div>
       </nav>
 
       {/* ========== হিরো স্লাইডার ========== */}
-      <section className={`bg-gradient-to-r ${slides[currentSlide].bg} text-white relative overflow-hidden`}>
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIj48Y2lyY2xlIGN4PSIzMCIgY3k9IjMwIiByPSIyIi8+PC9nPjwvZz48L3N2Zz4=')] opacity-20"></div>
-        <div className="container mx-auto px-4 py-20 md:py-32 relative">
-          <div className="max-w-3xl">
-            <div className="text-6xl md:text-8xl mb-6 animate-bounce">{slides[currentSlide].emoji}</div>
-            <h1 className="text-4xl md:text-6xl font-bold mb-4 leading-tight">
-              {slides[currentSlide].title}
-              <br />
-              <span className="text-yellow-300">{slides[currentSlide].subtitle}</span>
-            </h1>
-            <p className="text-lg md:text-xl opacity-90 mb-8">{slides[currentSlide].desc}</p>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Link href="/results" className="bg-white text-gray-900 px-8 py-4 rounded-full font-bold text-lg hover:bg-gray-100 transition transform hover:scale-105 shadow-xl inline-block text-center">
-                🔍 ফলাফল দেখুন
-              </Link>
-              <Link href="/schools" className="border-2 border-white px-8 py-4 rounded-full font-bold text-lg hover:bg-white/20 transition transform hover:scale-105 inline-block text-center">
-                🏫 স্কুল সমূহ
-              </Link>
+      {allSlides.length > 0 && (
+        <section className={`bg-gradient-to-r ${allSlides[currentSlide].bg} text-white relative overflow-hidden`}>
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIj48Y2lyY2xlIGN4PSIzMCIgY3k9IjMwIiByPSIyIi8+PC9nPjwvZz48L3N2Zz4=')] opacity-20"></div>
+          <div className="container mx-auto px-4 py-20 md:py-32 relative">
+            <div className="max-w-3xl">
+              <div className="text-6xl md:text-8xl mb-6 animate-bounce">{allSlides[currentSlide].emoji}</div>
+              {allSlides[currentSlide].type === 'gallery' && allSlides[currentSlide].image ? (
+                <div className="mb-6">
+                  <img src={allSlides[currentSlide].image} alt={allSlides[currentSlide].title} className="w-full h-64 md:h-80 object-cover rounded-2xl shadow-2xl" />
+                </div>
+              ) : (
+                <>
+                  <h1 className="text-4xl md:text-6xl font-bold mb-4 leading-tight">{allSlides[currentSlide].title}<br /><span className="text-yellow-300">{allSlides[currentSlide].subtitle}</span></h1>
+                  <p className="text-lg md:text-xl opacity-90 mb-8">{allSlides[currentSlide].desc}</p>
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <Link href="/results" className="bg-white text-gray-900 px-8 py-4 rounded-full font-bold text-lg hover:bg-gray-100 transition transform hover:scale-105 shadow-xl inline-block text-center">🔍 ফলাফল দেখুন</Link>
+                    <Link href="/schools" className="border-2 border-white px-8 py-4 rounded-full font-bold text-lg hover:bg-white/20 transition transform hover:scale-105 inline-block text-center">🏫 স্কুল সমূহ</Link>
+                  </div>
+                </>
+              )}
             </div>
           </div>
-        </div>
-        <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex gap-3">
-          {slides.map((_, i) => (
-            <button key={i} onClick={() => setCurrentSlide(i)}
-              className={`w-3 h-3 rounded-full transition-all ${i === currentSlide ? 'bg-white w-8' : 'bg-white/50'}`}
-            />
-          ))}
-        </div>
-      </section>
+          <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex gap-3">
+            {allSlides.map((_, i) => (
+              <button key={i} onClick={() => setCurrentSlide(i)} className={`w-3 h-3 rounded-full transition-all ${i === currentSlide ? 'bg-white w-8' : 'bg-white/50'}`} />
+            ))}
+          </div>
+        </section>
+      )}
 
-      {/* ========== স্ট্যাটস কাউন্টার ========== */}
+      {/* ========== স্ট্যাটস ========== */}
       <section className="container mx-auto px-4 -mt-16 relative z-10">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { icon: "🏫", value: `${stats.schools}+`, label: "শিক্ষা প্রতিষ্ঠান", color: "from-green-500 to-emerald-600", shadow: "shadow-green-200" },
-            { icon: "👨‍🎓", value: `${stats.students}+`, label: "পরীক্ষার্থী", color: "from-blue-500 to-indigo-600", shadow: "shadow-blue-200" },
-            { icon: "🏆", value: `${stats.scholars}+`, label: "স্কলারশিপ", color: "from-yellow-500 to-orange-600", shadow: "shadow-yellow-200" },
-            { icon: "⭐", value: `${stats.talentpool}+`, label: "ট্যালেন্টপুল", color: "from-purple-500 to-pink-600", shadow: "shadow-purple-200" }
-          ].map((stat, i) => (
+          {[{ icon: "🏫", value: `${stats.schools}+`, label: "শিক্ষা প্রতিষ্ঠান", color: "from-green-500 to-emerald-600", shadow: "shadow-green-200" },{ icon: "👨‍🎓", value: `${stats.students}+`, label: "পরীক্ষার্থী", color: "from-blue-500 to-indigo-600", shadow: "shadow-blue-200" },{ icon: "🏆", value: `${stats.scholars}+`, label: "স্কলারশিপ", color: "from-yellow-500 to-orange-600", shadow: "shadow-yellow-200" },{ icon: "⭐", value: `${stats.talentpool}+`, label: "ট্যালেন্টপুল", color: "from-purple-500 to-pink-600", shadow: "shadow-purple-200" }].map((stat, i) => (
             <div key={i} className={`bg-white rounded-2xl shadow-xl ${stat.shadow} p-6 text-center transform hover:-translate-y-2 transition-all duration-300`}>
               <div className={`w-16 h-16 bg-gradient-to-r ${stat.color} rounded-2xl flex items-center justify-center text-2xl mx-auto mb-4 shadow-lg`}>{stat.icon}</div>
               <div className="text-3xl md:text-4xl font-bold text-gray-800 mb-1">{stat.value}</div>
@@ -162,26 +152,12 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ========== ফিচার সেকশন ========== */}
+      {/* ========== ফিচার ========== */}
       <section className="container mx-auto px-4 py-20">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">আমাদের সেবাসমূহ</h2>
-          <p className="text-gray-600 max-w-2xl mx-auto">শিক্ষার্থীদের মেধা বিকাশে আমরা বিভিন্ন সেবা প্রদান করে থাকি</p>
-        </div>
+        <div className="text-center mb-16"><h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">আমাদের সেবাসমূহ</h2><p className="text-gray-600 max-w-2xl mx-auto">শিক্ষার্থীদের মেধা বিকাশে আমরা বিভিন্ন সেবা প্রদান করে থাকি</p></div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {[
-            { icon: "🔍", title: "ফলাফল অনুসন্ধান", desc: "রোল নম্বর বা স্কুলের নাম দিয়ে সহজেই ফলাফল জানুন।", link: "/results", color: "border-green-500" },
-            { icon: "📋", title: "মেরিট লিস্ট", desc: "বর্ষসেরা মেধাবীদের তালিকা দেখুন।", link: "/merit-list", color: "border-blue-500" },
-            { icon: "📚", title: "স্কলারশিপ তথ্য", desc: "স্কলারশিপ ও ট্যালেন্টপুল সম্পর্কে বিস্তারিত জানুন।", link: "/scholarship", color: "border-purple-500" }
-          ].map((feature, i) => (
-            <Link key={i} href={feature.link} className="group">
-              <div className={`bg-white rounded-2xl shadow-lg p-8 border-t-4 ${feature.color} hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2`}>
-                <div className="text-5xl mb-6">{feature.icon}</div>
-                <h3 className="text-xl font-bold text-gray-800 mb-3 group-hover:text-green-600 transition">{feature.title}</h3>
-                <p className="text-gray-600 mb-4">{feature.desc}</p>
-                <span className="text-green-600 font-semibold group-hover:underline">বিস্তারিত →</span>
-              </div>
-            </Link>
+          {[{ icon: "🔍", title: "ফলাফল অনুসন্ধান", desc: "রোল নম্বর বা স্কুলের নাম দিয়ে সহজেই ফলাফল জানুন।", link: "/results", color: "border-green-500" },{ icon: "📋", title: "মেরিট লিস্ট", desc: "বর্ষসেরা মেধাবীদের তালিকা দেখুন।", link: "/merit-list", color: "border-blue-500" },{ icon: "📚", title: "স্কলারশিপ তথ্য", desc: "স্কলারশিপ ও ট্যালেন্টপুল সম্পর্কে বিস্তারিত জানুন।", link: "/scholarship", color: "border-purple-500" }].map((f, i) => (
+            <Link key={i} href={f.link} className="group"><div className={`bg-white rounded-2xl shadow-lg p-8 border-t-4 ${f.color} hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2`}><div className="text-5xl mb-6">{f.icon}</div><h3 className="text-xl font-bold text-gray-800 mb-3 group-hover:text-green-600 transition">{f.title}</h3><p className="text-gray-600 mb-4">{f.desc}</p><span className="text-green-600 font-semibold group-hover:underline">বিস্তারিত →</span></div></Link>
           ))}
         </div>
       </section>
@@ -190,58 +166,47 @@ export default function HomePage() {
       {notices.length > 0 && (
         <section className="bg-white py-16">
           <div className="container mx-auto px-4">
-            <div className="text-center mb-10">
-              <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">📢 নোটিশ বোর্ড</h2>
-              <p className="text-gray-600">এসোসিয়েশনের সর্বশেষ ঘোষণা</p>
-            </div>
+            <div className="text-center mb-10"><h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">📢 নোটিশ বোর্ড</h2><p className="text-gray-600">এসোসিয়েশনের সর্বশেষ ঘোষণা</p></div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-              {notices.map(notice => (
-                <div key={notice.id} className="bg-gray-50 rounded-xl shadow p-6 border-t-4 border-blue-500 hover:shadow-lg transition">
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="text-2xl">{getTypeIcon(notice.type)}</span>
-                    <span className="text-xs text-gray-500">
-                      {new Date(notice.created_at).toLocaleDateString('bn-BD', { month: 'short', day: 'numeric' })}
-                    </span>
-                  </div>
-                  <h3 className="font-bold text-gray-800 mb-2">{notice.title_bn}</h3>
-                  {notice.content && <p className="text-sm text-gray-600">{notice.content}</p>}
+              {notices.map(n => (
+                <div key={n.id} className="bg-gray-50 rounded-xl shadow p-6 border-t-4 border-blue-500 hover:shadow-lg transition">
+                  <div className="flex items-center gap-2 mb-3"><span className="text-2xl">{getTypeIcon(n.type)}</span><span className="text-xs text-gray-500">{new Date(n.created_at).toLocaleDateString('bn-BD', { month: 'short', day: 'numeric' })}</span></div>
+                  <h3 className="font-bold text-gray-800 mb-2">{n.title_bn}</h3>
+                  {n.content && <p className="text-sm text-gray-600">{n.content}</p>}
                 </div>
               ))}
             </div>
-            <div className="text-center mt-8">
-              <Link href="/notices" className="bg-blue-600 text-white px-8 py-3 rounded-full font-bold hover:bg-blue-700 transition shadow-lg inline-block">
-                সকল নোটিশ দেখুন →
-              </Link>
-            </div>
+            <div className="text-center mt-8"><Link href="/notices" className="bg-blue-600 text-white px-8 py-3 rounded-full font-bold hover:bg-blue-700 transition shadow-lg inline-block">সকল নোটিশ দেখুন →</Link></div>
           </div>
+        </section>
+      )}
+
+      {/* ========== গ্যালারি প্রিভিউ ========== */}
+      {galleryPreview.length > 0 && (
+        <section className="container mx-auto px-4 py-16">
+          <div className="text-center mb-10"><h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">📸 গ্যালারি</h2><p className="text-gray-600">এসোসিয়েশনের স্মরণীয় মুহূর্তগুলো</p></div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
+            {galleryPreview.map(p => (
+              <div key={p.id} className="bg-white rounded-xl shadow overflow-hidden hover:shadow-lg transition">
+                <img src={p.image_url} alt={p.title_bn} className="w-full h-40 object-cover" />
+                {p.title_bn && <p className="p-2 text-sm font-semibold truncate">{p.title_bn}</p>}
+              </div>
+            ))}
+          </div>
+          <div className="text-center mt-8"><Link href="/gallery" className="bg-purple-600 text-white px-8 py-3 rounded-full font-bold hover:bg-purple-700 transition shadow-lg inline-block">সম্পূর্ণ গ্যালারি দেখুন →</Link></div>
         </section>
       )}
 
       {/* ========== অংশগ্রহণকারী স্কুল ========== */}
       <section className="bg-white py-20">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">অংশগ্রহণকারী স্কুল</h2>
-            <p className="text-gray-600">{stats.schools}টিরও বেশি শিক্ষা প্রতিষ্ঠান আমাদের সাথে যুক্ত</p>
-          </div>
+          <div className="text-center mb-16"><h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">অংশগ্রহণকারী স্কুল</h2><p className="text-gray-600">{stats.schools}টিরও বেশি শিক্ষা প্রতিষ্ঠান আমাদের সাথে যুক্ত</p></div>
           <div className="flex flex-wrap justify-center gap-4">
-            {realSchools.length > 0 ? (
-              realSchools.slice(0, 6).map((school) => (
-                <Link key={school.id} href={`/schools/${school.id}`}
-                  className="bg-gray-50 rounded-xl px-6 py-4 shadow hover:shadow-lg transition cursor-pointer border border-gray-100 hover:border-green-300"
-                >
-                  <span className="text-lg font-semibold text-gray-700">{school.name_bn}</span>
-                </Link>
-              ))
-            ) : (
-              <p className="text-gray-500">এখনো কোনো স্কুল যোগ করা হয়নি</p>
-            )}
+            {realSchools.length > 0 ? realSchools.slice(0, 6).map(s => (
+              <Link key={s.id} href={`/schools/${s.id}`} className="bg-gray-50 rounded-xl px-6 py-4 shadow hover:shadow-lg transition cursor-pointer border border-gray-100 hover:border-green-300"><span className="text-lg font-semibold text-gray-700">{s.name_bn}</span></Link>
+            )) : <p className="text-gray-500">এখনো কোনো স্কুল যোগ করা হয়নি</p>}
           </div>
-          <div className="text-center mt-10">
-            <Link href="/schools" className="bg-green-600 text-white px-8 py-3 rounded-full font-bold hover:bg-green-700 transition shadow-lg inline-block">
-              সকল স্কুল দেখুন →
-            </Link>
-          </div>
+          <div className="text-center mt-10"><Link href="/schools" className="bg-green-600 text-white px-8 py-3 rounded-full font-bold hover:bg-green-700 transition shadow-lg inline-block">সকল স্কুল দেখুন →</Link></div>
         </div>
       </section>
 
@@ -250,9 +215,7 @@ export default function HomePage() {
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl md:text-4xl font-bold mb-4">আপনার ফলাফল জানতে প্রস্তুত?</h2>
           <p className="text-xl opacity-90 mb-8">এখনই রোল নম্বর দিয়ে আপনার ফলাফল জেনে নিন</p>
-          <Link href="/results" className="bg-white text-green-700 px-10 py-4 rounded-full font-bold text-xl hover:bg-gray-100 transition transform hover:scale-105 shadow-2xl inline-block">
-            ফলাফল দেখুন 🚀
-          </Link>
+          <Link href="/results" className="bg-white text-green-700 px-10 py-4 rounded-full font-bold text-xl hover:bg-gray-100 transition transform hover:scale-105 shadow-2xl inline-block">ফলাফল দেখুন 🚀</Link>
         </div>
       </section>
 
@@ -260,43 +223,12 @@ export default function HomePage() {
       <footer className="bg-gray-900 text-white">
         <div className="container mx-auto px-4 py-12">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div>
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center font-bold">B</div>
-                <span className="text-xl font-bold">BKWA</span>
-              </div>
-              <p className="text-gray-400">বাংলাদেশ কিন্ডার গার্টেন ওয়েলফেয়ার এসোসিয়েশন</p>
-            </div>
-            <div>
-              <h4 className="font-bold mb-4">গুরুত্বপূর্ণ লিংক</h4>
-              <div className="space-y-2 text-gray-400">
-                <div><Link href="/results" className="hover:text-white">ফলাফল</Link></div>
-                <div><Link href="/schools" className="hover:text-white">স্কুল</Link></div>
-                <div><Link href="/merit-list" className="hover:text-white">মেরিট লিস্ট</Link></div>
-                <div><Link href="/certificates" className="hover:text-white">সার্টিফিকেট</Link></div>
-                <div><Link href="/notices" className="hover:text-white">নোটিশ বোর্ড</Link></div>
-              </div>
-            </div>
-            <div>
-              <h4 className="font-bold mb-4">যোগাযোগ</h4>
-              <div className="space-y-2 text-gray-400">
-                <div>📞 +৮৮০ ১৭০০-০০০০০০</div>
-                <div>✉️ info@bkwa.org</div>
-                <div>📍 ঢাকা, বাংলাদেশ</div>
-              </div>
-            </div>
-            <div>
-              <h4 className="font-bold mb-4">সোশ্যাল মিডিয়া</h4>
-              <div className="flex gap-4 text-2xl">
-                <span className="cursor-pointer hover:text-green-400">📘</span>
-                <span className="cursor-pointer hover:text-green-400">📺</span>
-                <span className="cursor-pointer hover:text-green-400">📱</span>
-              </div>
-            </div>
+            <div><div className="flex items-center gap-3 mb-4"><div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center font-bold">B</div><span className="text-xl font-bold">BKWA</span></div><p className="text-gray-400">বাংলাদেশ কিন্ডার গার্টেন ওয়েলফেয়ার এসোসিয়েশন</p></div>
+            <div><h4 className="font-bold mb-4">গুরুত্বপূর্ণ লিংক</h4><div className="space-y-2 text-gray-400"><div><Link href="/results" className="hover:text-white">ফলাফল</Link></div><div><Link href="/schools" className="hover:text-white">স্কুল</Link></div><div><Link href="/merit-list" className="hover:text-white">মেরিট লিস্ট</Link></div><div><Link href="/certificates" className="hover:text-white">সার্টিফিকেট</Link></div><div><Link href="/notices" className="hover:text-white">নোটিশ</Link></div><div><Link href="/gallery" className="hover:text-white">গ্যালারি</Link></div></div></div>
+            <div><h4 className="font-bold mb-4">যোগাযোগ</h4><div className="space-y-2 text-gray-400"><div>📞 +৮৮০ ১৭০০-০০০০০০</div><div>✉️ info@bkwa.org</div><div>📍 ঢাকা, বাংলাদেশ</div></div></div>
+            <div><h4 className="font-bold mb-4">সোশ্যাল মিডিয়া</h4><div className="flex gap-4 text-2xl"><span className="cursor-pointer hover:text-green-400">📘</span><span className="cursor-pointer hover:text-green-400">📺</span><span className="cursor-pointer hover:text-green-400">📱</span></div></div>
           </div>
-          <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-500">
-            <p>&copy; ২০২৫ বাংলাদেশ কিন্ডার গার্টেন ওয়েলফেয়ার এসোসিয়েশন। সর্বস্বত্ব সংরক্ষিত।</p>
-          </div>
+          <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-500"><p>&copy; ২০২৫ বাংলাদেশ কিন্ডার গার্টেন ওয়েলফেয়ার এসোসিয়েশন। সর্বস্বত্ব সংরক্ষিত।</p></div>
         </div>
       </footer>
     </div>
