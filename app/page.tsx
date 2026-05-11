@@ -7,9 +7,11 @@ import { supabase } from "@/lib/supabase";
 export default function HomePage() {
   const [stats, setStats] = useState({ schools: 0, students: 0, scholars: 0, talentpool: 0 });
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [realSchools, setRealSchools] = useState<any[]>([]);
 
   useEffect(() => {
     fetchStats();
+    fetchRealSchools();
   }, []);
 
   const fetchStats = async () => {
@@ -18,11 +20,19 @@ export default function HomePage() {
       supabase.from('students').select('*', { count: 'exact' })
     ]);
     setStats({
-      schools: schoolRes.count || 30,
-      students: studentRes.count || 5000,
+      schools: schoolRes.count || 0,
+      students: studentRes.count || 0,
       scholars: 150,
       talentpool: 300
     });
+  };
+
+  const fetchRealSchools = async () => {
+    const { data } = await supabase
+      .from('schools')
+      .select('id, name_bn, eiin, phone')
+      .order('name_bn');
+    if (data) setRealSchools(data);
   };
 
   const slides = [
@@ -101,7 +111,6 @@ export default function HomePage() {
             </div>
           </div>
         </div>
-        {/* স্লাইডার ডটস */}
         <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex gap-3">
           {slides.map((_, i) => (
             <button key={i} onClick={() => setCurrentSlide(i)}
@@ -121,9 +130,7 @@ export default function HomePage() {
             { icon: "⭐", value: `${stats.talentpool}+`, label: "ট্যালেন্টপুল", color: "from-purple-500 to-pink-600", shadow: "shadow-purple-200" }
           ].map((stat, i) => (
             <div key={i} className={`bg-white rounded-2xl shadow-xl ${stat.shadow} p-6 text-center transform hover:-translate-y-2 transition-all duration-300`}>
-              <div className={`w-16 h-16 bg-gradient-to-r ${stat.color} rounded-2xl flex items-center justify-center text-2xl mx-auto mb-4 shadow-lg`}>
-                {stat.icon}
-              </div>
+              <div className={`w-16 h-16 bg-gradient-to-r ${stat.color} rounded-2xl flex items-center justify-center text-2xl mx-auto mb-4 shadow-lg`}>{stat.icon}</div>
               <div className="text-3xl md:text-4xl font-bold text-gray-800 mb-1">{stat.value}</div>
               <div className="text-gray-600 text-sm">{stat.label}</div>
             </div>
@@ -137,7 +144,6 @@ export default function HomePage() {
           <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">আমাদের সেবাসমূহ</h2>
           <p className="text-gray-600 max-w-2xl mx-auto">শিক্ষার্থীদের মেধা বিকাশে আমরা বিভিন্ন সেবা প্রদান করে থাকি</p>
         </div>
-        
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {[
             { icon: "🔍", title: "ফলাফল অনুসন্ধান", desc: "রোল নম্বর বা স্কুলের নাম দিয়ে সহজেই ফলাফল জানুন। দ্রুত এবং নির্ভুল ফলাফল সেবা।", link: "/results", color: "border-green-500" },
@@ -161,14 +167,20 @@ export default function HomePage() {
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">অংশগ্রহণকারী স্কুল</h2>
-            <p className="text-gray-600">৩০টিরও বেশি শিক্ষা প্রতিষ্ঠান আমাদের সাথে যুক্ত</p>
+            <p className="text-gray-600">{stats.schools}টিরও বেশি শিক্ষা প্রতিষ্ঠান আমাদের সাথে যুক্ত</p>
           </div>
           <div className="flex flex-wrap justify-center gap-4">
-            {['আদর্শ কিন্টারগার্ডেন', 'মডার্ন একাডেমি', 'ব্রাইট ফিউচার', 'স্টার স্কুল', 'লিটল এঞ্জেলস', 'ড্রিমল্যান্ড'].map((school, i) => (
-              <div key={i} className="bg-gray-50 rounded-xl px-6 py-4 shadow hover:shadow-lg transition cursor-pointer border border-gray-100">
-                <span className="text-lg font-semibold text-gray-700">{school}</span>
-              </div>
-            ))}
+            {realSchools.length > 0 ? (
+              realSchools.slice(0, 6).map((school) => (
+                <Link key={school.id} href={`/schools/${school.id}`}
+                  className="bg-gray-50 rounded-xl px-6 py-4 shadow hover:shadow-lg transition cursor-pointer border border-gray-100 hover:border-green-300"
+                >
+                  <span className="text-lg font-semibold text-gray-700">{school.name_bn}</span>
+                </Link>
+              ))
+            ) : (
+              <p className="text-gray-500">এখনো কোনো স্কুল যোগ করা হয়নি</p>
+            )}
           </div>
           <div className="text-center mt-10">
             <Link href="/schools" className="bg-green-600 text-white px-8 py-3 rounded-full font-bold hover:bg-green-700 transition shadow-lg inline-block">
@@ -178,25 +190,33 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ========== টেস্টিমোনিয়াল ========== */}
+      {/* ========== সকল প্রতিষ্ঠান ========== */}
       <section className="container mx-auto px-4 py-20">
         <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">যা বলছেন অংশগ্রহণকারীরা</h2>
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">অংশগ্রহণকারী প্রতিষ্ঠানসমূহ</h2>
+          <p className="text-gray-600 max-w-2xl mx-auto">আমাদের সাথে যুক্ত সকল শিক্ষা প্রতিষ্ঠান</p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {[
-            { name: "প্রধান শিক্ষক", school: "আদর্শ কিন্টারগার্ডেন", text: "এই বৃত্তি পরীক্ষা শিক্ষার্থীদের মেধা বিকাশে অসাধারণ ভূমিকা রাখছে।", emoji: "👨‍🏫" },
-            { name: "অভিভাবক", school: "মডার্ন একাডেমি", text: "খুবই সুন্দর আয়োজন। ফলাফল অনলাইনে পেয়ে আমরা খুব খুশি।", emoji: "👨‍👩‍👧" },
-            { name: "শিক্ষার্থী", school: "ব্রাইট ফিউচার", text: "আমি স্কলারশিপ পেয়েছি! এটা আমার জীবনের সেরা অর্জন।", emoji: "👩‍🎓" }
-          ].map((t, i) => (
-            <div key={i} className="bg-white rounded-2xl shadow-lg p-8 text-center">
-              <div className="text-5xl mb-4">{t.emoji}</div>
-              <p className="text-gray-600 mb-4 italic">"{t.text}"</p>
-              <div className="font-bold text-gray-800">{t.name}</div>
-              <div className="text-sm text-gray-500">{t.school}</div>
-            </div>
-          ))}
-        </div>
+        
+        {realSchools.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {realSchools.map((school) => (
+              <Link key={school.id} href={`/schools/${school.id}`} className="group">
+                <div className="bg-white rounded-2xl shadow-lg p-8 text-center hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 border-t-4 border-green-500">
+                  <div className="text-5xl mb-4">🏫</div>
+                  <h3 className="text-xl font-bold text-gray-800 mb-2 group-hover:text-green-600 transition">{school.name_bn}</h3>
+                  {school.eiin && <p className="text-sm text-gray-500">EIIN: {school.eiin}</p>}
+                  {school.phone && <p className="text-sm text-gray-500">📞 {school.phone}</p>}
+                  <div className="mt-4 text-green-600 font-semibold group-hover:underline">বিস্তারিত দেখুন →</div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <div className="text-4xl mb-4">📭</div>
+            <p className="text-xl text-gray-600">এখনো কোনো স্কুল যোগ করা হয়নি</p>
+          </div>
+        )}
       </section>
 
       {/* ========== CTA ========== */}
@@ -232,9 +252,9 @@ export default function HomePage() {
             <div>
               <h4 className="font-bold mb-4">যোগাযোগ</h4>
               <div className="space-y-2 text-gray-400">
-                <div>📞 +৮৮০ ১৭০০-০০০০০০</div>
+                <div>📞 +৮৮০ 1717-547312</div>
                 <div>✉️ info@bkwa.org</div>
-                <div>📍 ঢাকা, বাংলাদেশ</div>
+                <div>📍 তুলসীঘাট,গাইবান্ধা</div>
               </div>
             </div>
             <div>
