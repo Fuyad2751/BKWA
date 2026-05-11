@@ -56,6 +56,7 @@ export default function AdminDashboard() {
         <div className="text-xl font-bold mb-8 p-4 border-b border-gray-700">BKWA Admin</div>
         <nav className="space-y-2">
           <Link href="/admin/dashboard" className="flex items-center gap-3 p-3 rounded-lg bg-green-600">📊 ড্যাশবোর্ড</Link>
+          <Link href="/admin/exams/register" className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800">📋 রেজিস্ট্রেশন</Link>
           <Link href="/admin/schools/add" className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800">🏫 স্কুল যোগ</Link>
           <Link href="/admin/students/add" className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800">👨‍🎓 শিক্ষার্থী যোগ</Link>
           <Link href="/admin/exams/add" className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800">📝 পরীক্ষা যোগ</Link>
