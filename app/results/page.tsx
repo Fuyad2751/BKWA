@@ -4,28 +4,6 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
-const getGradeBadge = (grade: string) => {
-  switch(grade) {
-    case 'Scholarship':
-      return 'bg-yellow-100 text-yellow-800 border border-yellow-300';
-    case 'Talentpool':
-      return 'bg-blue-100 text-blue-800 border border-blue-300';
-    case 'General':
-      return 'bg-green-100 text-green-800 border border-green-300';
-    default:
-      return 'bg-gray-100 text-gray-800';
-  }
-};
-
-const getGradeNameBn = (grade: string) => {
-  switch(grade) {
-    case 'Scholarship': return 'স্কলারশিপ';
-    case 'Talentpool': return 'ট্যালেন্টপুল';
-    case 'General': return 'সাধারণ';
-    default: return grade;
-  }
-};
-
 export default function ResultsPage() {
   const [searchType, setSearchType] = useState<'student' | 'school'>('student');
   const [exams, setExams] = useState<any[]>([]);
@@ -36,211 +14,155 @@ export default function ResultsPage() {
   const [results, setResults] = useState<any[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  const [studentInfo, setStudentInfo] = useState<any>(null);
 
-  useEffect(() => {
-    loadInitialData();
-  }, []);
+  useEffect(() => { loadInitialData(); }, []);
 
   const loadInitialData = async () => {
-    // পরীক্ষা লোড
-    const { data: examData } = await supabase
-      .from('scholarship_exams')
-      .select('*')
-      .order('year', { ascending: false });
-    setExams(examData || []);
-
-    // স্কুল লোড
-    const { data: schoolData } = await supabase
-      .from('schools')
-      .select('id, name_bn')
-      .order('name_bn');
-    setSchools(schoolData || []);
+    const [examData, schoolData] = await Promise.all([
+      supabase.from('scholarship_exams').select('*').order('year', { ascending: false }),
+      supabase.from('schools').select('id, name_bn').order('name_bn')
+    ]);
+    setExams(examData.data || []);
+    setSchools(schoolData.data || []);
   };
 
   const handleSearch = async () => {
-    if (!selectedExam) {
-      alert('পরীক্ষা নির্বাচন করুন');
-      return;
-    }
-
+    if (!selectedExam) { alert('পরীক্ষা নির্বাচন করুন'); return; }
     setLoading(true);
     setHasSearched(true);
 
-    let query = supabase
-      .from('results')
-      .select(`
-        *,
-        students!inner(name_bn, class, roll, school_id),
-        schools!inner(name_bn)
-      `)
-      .eq('exam_id', selectedExam);
-
     if (searchType === 'student' && rollNumber) {
-      query = query.eq('students.roll', rollNumber);
-    } else if (searchType === 'school' && selectedSchool) {
-      query = query.eq('school_id', selectedSchool);
-    }
+      // প্রথমে exam_registrations থেকে student_id বের করুন
+      const { data: reg } = await supabase
+        .from('exam_registrations')
+        .select('student_id, roll')
+        .eq('exam_id', selectedExam)
+        .eq('roll', rollNumber)
+        .single();
 
-    const { data } = await query.order('rank', { ascending: true });
-    setResults(data);
+      if (reg) {
+        const { data: stu } = await supabase
+          .from('students')
+          .select('*, schools(name_bn)')
+          .eq('id', reg.student_id)
+          .single();
+        setStudentInfo(stu);
+
+        const { data: res } = await supabase
+          .from('results')
+          .select('*, scholarship_exams(year, title_bn)')
+          .eq('exam_id', selectedExam)
+          .eq('student_id', reg.student_id);
+        setResults(res);
+      } else {
+        setStudentInfo(null);
+        setResults([]);
+      }
+    } else if (searchType === 'school' && selectedSchool) {
+      const { data: regs } = await supabase
+        .from('exam_registrations')
+        .select('student_id, roll')
+        .eq('exam_id', selectedExam)
+        .eq('school_id', selectedSchool);
+      
+      if (regs && regs.length > 0) {
+        const studentIds = regs.map(r => r.student_id);
+        const { data: res } = await supabase
+          .from('results')
+          .select('*, students!inner(name_bn, class), scholarship_exams(year, title_bn)')
+          .eq('exam_id', selectedExam)
+          .in('student_id', studentIds)
+          .order('total_marks', { ascending: false });
+        
+        // রোল ম্যাপ
+        const rollMap: any = {};
+        regs.forEach(r => { rollMap[r.student_id] = r.roll; });
+        const mapped = (res || []).map(r => ({ ...r, exam_roll: rollMap[r.student_id] || '-' }));
+        setResults(mapped);
+      } else {
+        setResults([]);
+      }
+    }
     setLoading(false);
+  };
+
+  const getGradeBadge = (g: string) => {
+    if (g === 'Scholarship') return 'bg-yellow-100 text-yellow-800';
+    if (g === 'Talentpool') return 'bg-blue-100 text-blue-800';
+    if (g === 'General') return 'bg-green-100 text-green-800';
+    return 'bg-gray-100 text-gray-800';
+  };
+
+  const getGradeNameBn = (g: string) => {
+    if (g === 'Scholarship') return 'স্কলারশিপ';
+    if (g === 'Talentpool') return 'ট্যালেন্টপুল';
+    if (g === 'General') return 'সাধারণ';
+    return g;
   };
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* হেডার */}
-      <div className="bg-gradient-to-r from-green-600 to-emerald-700 text-white">
-        <div className="container mx-auto px-4 py-12">
-          <Link href="/" className="text-green-200 hover:text-white mb-4 inline-block">
-            ← হোম পেজে ফিরুন
-          </Link>
-          <h1 className="text-3xl md:text-4xl font-bold">ফলাফল অনুসন্ধান</h1>
-          <p className="mt-2 text-green-100">বৃত্তি পরীক্ষার ফলাফল দেখুন</p>
+      <div className="bg-gradient-to-r from-green-600 to-emerald-700 text-white py-12">
+        <div className="container mx-auto px-4">
+          <Link href="/" className="text-green-200 hover:text-white mb-4 inline-block">← হোম পেজে ফিরুন</Link>
+          <h1 className="text-3xl font-bold">ফলাফল অনুসন্ধান</h1>
+          <p className="text-green-100 mt-2">বৃত্তি পরীক্ষার ফলাফল দেখুন</p>
         </div>
       </div>
 
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
-          {/* সার্চ ফর্ম */}
           <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
             <div className="flex gap-4 mb-6">
-              <button
-                onClick={() => setSearchType('student')}
-                className={`flex-1 py-3 rounded-lg font-bold text-lg transition ${
-                  searchType === 'student'
-                    ? 'bg-green-600 text-white shadow-lg'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-              >
-                👨‍🎓 শিক্ষার্থী অনুসারে
-              </button>
-              <button
-                onClick={() => setSearchType('school')}
-                className={`flex-1 py-3 rounded-lg font-bold text-lg transition ${
-                  searchType === 'school'
-                    ? 'bg-green-600 text-white shadow-lg'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-              >
-                🏫 স্কুল অনুসারে
-              </button>
+              <button onClick={() => setSearchType('student')} className={`flex-1 py-3 rounded-lg font-bold ${searchType === 'student' ? 'bg-green-600 text-white' : 'bg-gray-200'}`}>👨‍🎓 শিক্ষার্থী অনুসারে</button>
+              <button onClick={() => setSearchType('school')} className={`flex-1 py-3 rounded-lg font-bold ${searchType === 'school' ? 'bg-green-600 text-white' : 'bg-gray-200'}`}>🏫 স্কুল অনুসারে</button>
             </div>
-
             <div className="space-y-4">
               <div>
-                <label className="block text-gray-700 font-semibold mb-2">
-                  📅 পরীক্ষার বছর
-                </label>
-                <select
-                  value={selectedExam}
-                  onChange={(e) => setSelectedExam(e.target.value)}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                >
+                <label className="block font-semibold mb-2">📅 পরীক্ষা</label>
+                <select value={selectedExam} onChange={(e) => setSelectedExam(e.target.value)} className="w-full p-3 border rounded-lg">
                   <option value="">পরীক্ষা নির্বাচন করুন</option>
-                  {exams.map((exam) => (
-                    <option key={exam.id} value={exam.id}>
-                      {exam.title_bn} ({exam.year})
-                    </option>
-                  ))}
+                  {exams.map(ex => <option key={ex.id} value={ex.id}>{ex.title_bn} ({ex.year})</option>)}
                 </select>
               </div>
-
               {searchType === 'student' ? (
                 <div>
-                  <label className="block text-gray-700 font-semibold mb-2">
-                    🔢 রোল নম্বর
-                  </label>
-                  <input
-                    type="text"
-                    value={rollNumber}
-                    onChange={(e) => setRollNumber(e.target.value)}
-                    placeholder="রোল নম্বর লিখুন"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                  />
+                  <label className="block font-semibold mb-2">🔢 রোল নম্বর</label>
+                  <input type="text" value={rollNumber} onChange={(e) => setRollNumber(e.target.value)} placeholder="রোল নম্বর লিখুন" className="w-full p-3 border rounded-lg" />
                 </div>
               ) : (
                 <div>
-                  <label className="block text-gray-700 font-semibold mb-2">
-                    🏫 স্কুল নির্বাচন
-                  </label>
-                  <select
-                    value={selectedSchool}
-                    onChange={(e) => setSelectedSchool(e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                  >
+                  <label className="block font-semibold mb-2">🏫 স্কুল</label>
+                  <select value={selectedSchool} onChange={(e) => setSelectedSchool(e.target.value)} className="w-full p-3 border rounded-lg">
                     <option value="">স্কুল নির্বাচন করুন</option>
-                    {schools.map((school) => (
-                      <option key={school.id} value={school.id}>
-                        {school.name_bn}
-                      </option>
-                    ))}
+                    {schools.map(s => <option key={s.id} value={s.id}>{s.name_bn}</option>)}
                   </select>
                 </div>
               )}
-
-              <button
-                onClick={handleSearch}
-                disabled={loading}
-                className="w-full bg-green-600 text-white py-4 rounded-lg font-bold text-lg hover:bg-green-700 disabled:opacity-50 transition"
-              >
-                {loading ? '⏳ অনুসন্ধান চলছে...' : '🔍 ফলাফল অনুসন্ধান করুন'}
+              <button onClick={handleSearch} disabled={loading} className="w-full bg-green-600 text-white py-4 rounded-lg font-bold text-lg hover:bg-green-700 disabled:opacity-50">
+                {loading ? '⏳ অনুসন্ধান...' : '🔍 ফলাফল দেখুন'}
               </button>
             </div>
           </div>
 
-          {/* ফলাফল টেবিল */}
           {hasSearched && (
             <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-              {loading ? (
-                <div className="p-12 text-center">
-                  <div className="text-4xl mb-4">⏳</div>
-                  <p className="text-xl">ফলাফল লোড হচ্ছে...</p>
-                </div>
-              ) : results && results.length > 0 ? (
+              {results && results.length > 0 ? (
                 <>
-                  <div className="bg-green-600 text-white p-6">
-                    <h2 className="text-xl font-bold">
-                      ফলাফল পাওয়া গেছে ({results.length} জন)
-                    </h2>
-                  </div>
+                  <div className="bg-green-600 text-white p-6"><h2 className="text-xl font-bold">ফলাফল ({results.length} জন)</h2></div>
                   <div className="overflow-x-auto">
                     <table className="w-full">
-                      <thead>
-                        <tr className="bg-gray-50 border-b">
-                          <th className="p-4 text-left">ক্রমিক</th>
-                          <th className="p-4 text-left">রোল</th>
-                          <th className="p-4 text-left">নাম</th>
-                          <th className="p-4 text-left">শ্রেণি</th>
-                          <th className="p-4 text-left">স্কুল</th>
-                          <th className="p-4 text-left">মোট নাম্বার</th>
-                          <th className="p-4 text-left">গ্রেড</th>
-                          <th className="p-4 text-left">মেধাক্রম</th>
-                        </tr>
-                      </thead>
+                      <thead><tr className="bg-gray-50"><th className="p-4 text-left">রোল</th><th className="p-4 text-left">নাম</th><th className="p-4 text-left">শ্রেণি</th>{searchType === 'school' && <th className="p-4 text-left">স্কুল</th>}<th className="p-4 text-left">নম্বর</th><th className="p-4 text-left">গ্রেড</th></tr></thead>
                       <tbody>
-                        {results.map((result, index) => (
-                          <tr key={result.id} className="border-b hover:bg-gray-50 transition">
-                            <td className="p-4">{index + 1}</td>
-                            <td className="p-4 font-semibold text-green-700">{result.students?.roll}</td>
-                            <td className="p-4 font-bold">{result.students?.name_bn}</td>
-                            <td className="p-4">{result.students?.class}য়</td>
-                            <td className="p-4 text-gray-600">{result.schools?.name_bn}</td>
-                            <td className="p-4">
-                              <span className="font-bold text-lg">{result.total_marks}</span>
-                              <span className="text-gray-500">/১০০</span>
-                            </td>
-                            <td className="p-4">
-                              <span className={`px-3 py-1 rounded-full text-sm font-bold ${getGradeBadge(result.grade)}`}>
-                                {getGradeNameBn(result.grade)}
-                              </span>
-                            </td>
-                            <td className="p-4">
-                              {result.rank && result.rank <= 10 ? (
-                                <span className="text-yellow-600 font-bold text-lg">🏅 {result.rank}</span>
-                              ) : (
-                                <span className="font-semibold">{result.rank || '-'}</span>
-                              )}
-                            </td>
+                        {results.map((r, i) => (
+                          <tr key={r.id} className="border-t hover:bg-gray-50">
+                            <td className="p-4 font-semibold text-green-700">{r.exam_roll || r.students?.roll || '-'}</td>
+                            <td className="p-4 font-bold">{r.students?.name_bn || studentInfo?.name_bn}</td>
+                            <td className="p-4">{r.students?.class || studentInfo?.class}য়</td>
+                            {searchType === 'school' && <td className="p-4 text-gray-600">{r.schools?.name_bn || studentInfo?.schools?.name_bn}</td>}
+                            <td className="p-4 font-bold text-lg">{r.total_marks}</td>
+                            <td className="p-4"><span className={`px-3 py-1 rounded-full text-xs font-bold ${getGradeBadge(r.grade)}`}>{getGradeNameBn(r.grade)}</span></td>
                           </tr>
                         ))}
                       </tbody>
@@ -248,41 +170,12 @@ export default function ResultsPage() {
                   </div>
                 </>
               ) : (
-                <div className="p-12 text-center">
-                  <div className="text-6xl mb-4">😔</div>
-                  <h3 className="text-xl font-bold text-gray-700 mb-2">কোনো ফলাফল পাওয়া যায়নি</h3>
-                  <p className="text-gray-600">
-                    দয়া করে সঠিক রোল নম্বর বা স্কুল নির্বাচন করে আবার চেষ্টা করুন
-                  </p>
-                </div>
+                <div className="p-12 text-center"><div className="text-6xl mb-4">😔</div><h3 className="text-xl font-bold">কোনো ফলাফল পাওয়া যায়নি</h3></div>
               )}
-            </div>
-          )}
-
-          {/* প্রথমবার ভিজিটরদের জন্য */}
-          {!hasSearched && (
-            <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
-              <div className="flex items-start gap-4">
-                <div className="text-3xl">ℹ️</div>
-                <div>
-                  <h3 className="font-bold text-lg text-blue-800 mb-2">কিভাবে ফলাফল দেখবেন?</h3>
-                  <ul className="space-y-2 text-blue-700">
-                    <li>• শিক্ষার্থী অনুসারে: রোল নম্বর লিখে সার্চ করুন</li>
-                    <li>• স্কুল অনুসারে: স্কুল সিলেক্ট করে সার্চ করুন</li>
-                    <li>• পরীক্ষার বছর সিলেক্ট করতে ভুলবেন না</li>
-                  </ul>
-                </div>
-              </div>
             </div>
           )}
         </div>
       </div>
-
-      <footer className="bg-gray-800 text-white py-6 mt-16">
-        <div className="container mx-auto px-4 text-center">
-          <p>&copy; ২০২৫র বাংলাদেশ কিন্ডার গার্টেন ওয়েলফেয়ার এসোসিয়েশন</p>
-        </div>
-      </footer>
     </div>
   );
 }
