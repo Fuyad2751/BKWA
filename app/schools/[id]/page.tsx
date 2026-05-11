@@ -37,7 +37,7 @@ if (st) {
   const { data: latestExam } = await supabase
     .from('scholarship_exams')
     .select('id')
-    // .eq('status', 'published')
+    .in('status', ['published', 'completed'])
     .order('year', { ascending: false })
     .limit(1)
     .single();
