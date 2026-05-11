@@ -65,7 +65,7 @@ export default function AddStudent() {
       setFormData({
         school_id: formData.school_id,
         name_bn: "", father_name: "", mother_name: "",
-        class: "1", roll: "", gender: "male", phone: ""
+        class: "1", gender: "male", phone: ""
       });
     }
     setLoading(false);
@@ -73,7 +73,6 @@ export default function AddStudent() {
 
   return (
     <div className="flex min-h-screen">
-      {/* সাইডবার */}
       <div className="w-64 min-h-screen bg-gray-900 text-white p-4">
         <div className="text-xl font-bold mb-8 p-4 border-b border-gray-700">BKWA Admin</div>
         <nav className="space-y-2">
@@ -103,15 +102,11 @@ export default function AddStudent() {
 
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* স্কুল সিলেক্ট */}
                 <div className="md:col-span-2">
                   <label className="block text-gray-700 font-semibold mb-2">🏫 স্কুল নির্বাচন *</label>
-                  <select
-                    value={formData.school_id}
+                  <select value={formData.school_id}
                     onChange={(e) => setFormData({...formData, school_id: e.target.value})}
-                    required
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                  >
+                    required className="w-full p-3 border border-gray-300 rounded-lg">
                     <option value="">স্কুল নির্বাচন করুন</option>
                     {schools.map((school) => (
                       <option key={school.id} value={school.id}>{school.name_bn}</option>
@@ -119,15 +114,13 @@ export default function AddStudent() {
                   </select>
                 </div>
 
-                {/* নাম */}
                 <div>
                   <label className="block text-gray-700 font-semibold mb-2">নাম (বাংলা) *</label>
                   <input type="text" required value={formData.name_bn}
                     onChange={(e) => setFormData({...formData, name_bn: e.target.value})}
                     className="w-full p-3 border rounded-lg" placeholder="শিক্ষার্থীর নাম" />
                 </div>
-                
-                {/* শ্রেণি */}
+
                 <div>
                   <label className="block text-gray-700 font-semibold mb-2">শ্রেণি *</label>
                   <select value={formData.class}
@@ -141,7 +134,6 @@ export default function AddStudent() {
                   </select>
                 </div>
 
-                {/* লিঙ্গ */}
                 <div>
                   <label className="block text-gray-700 font-semibold mb-2">লিঙ্গ *</label>
                   <select value={formData.gender}
@@ -152,7 +144,6 @@ export default function AddStudent() {
                   </select>
                 </div>
 
-                {/* পিতা */}
                 <div>
                   <label className="block text-gray-700 font-semibold mb-2">পিতার নাম</label>
                   <input type="text" value={formData.father_name}
@@ -160,7 +151,6 @@ export default function AddStudent() {
                     className="w-full p-3 border rounded-lg" placeholder="পিতার নাম" />
                 </div>
 
-                {/* মাতা */}
                 <div>
                   <label className="block text-gray-700 font-semibold mb-2">মাতার নাম</label>
                   <input type="text" value={formData.mother_name}
@@ -168,7 +158,6 @@ export default function AddStudent() {
                     className="w-full p-3 border rounded-lg" placeholder="মাতার নাম" />
                 </div>
 
-                {/* ফোন */}
                 <div>
                   <label className="block text-gray-700 font-semibold mb-2">ফোন নম্বর</label>
                   <input type="text" value={formData.phone}
@@ -183,92 +172,14 @@ export default function AddStudent() {
                   {loading ? '⏳ যোগ হচ্ছে...' : '✅ শিক্ষার্থী যোগ করুন'}
                 </button>
                 <button type="reset"
-                  onClick={() => setFormData({school_id: "", name_bn: "", father_name: "", mother_name: "", class: "1", roll: "", gender: "male", phone: ""})}
+                  onClick={() => setFormData({school_id: "", name_bn: "", father_name: "", mother_name: "", class: "1", gender: "male", phone: ""})}
                   className="bg-gray-300 text-gray-700 px-8 py-3 rounded-lg font-bold hover:bg-gray-400">
                   ✖️ রিসেট
                 </button>
               </div>
             </form>
           </div>
-
-          {/* সাম্প্রতিক শিক্ষার্থী তালিকা */}
-          <RecentStudents />
         </div>
-      </div>
-    </div>
-  );
-}
-
-// সাম্প্রতিক শিক্ষার্থী কম্পোনেন্ট
-function RecentStudents() {
-  const [students, setStudents] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchStudents();
-  }, []);
-
-  const fetchStudents = async () => {
-    const { data } = await supabase
-      .from('students')
-      .select('*, schools(name_bn)')
-      .order('created_at', { ascending: false })
-      .limit(10);
-    if (data) setStudents(data);
-    setLoading(false);
-  };
-
-  const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`"${name}" - শিক্ষার্থী ডিলিট করতে চান?`)) return;
-
-    const { error } = await supabase
-      .from('students')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      alert('ডিলিট করতে সমস্যা: ' + error.message);
-    } else {
-      alert('✅ ডিলিট হয়েছে!');
-      fetchStudents();
-    }
-  };
-
-  return (
-    <div className="bg-white rounded-xl shadow p-8 mt-8">
-      <h2 className="text-xl font-bold mb-4">📋 সাম্প্রতিক শিক্ষার্থী</h2>
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="bg-gray-50">
-              <th className="p-3 text-left">নাম</th>
-              <th className="p-3 text-left">রোল</th>
-              <th className="p-3 text-left">শ্রেণি</th>
-              <th className="p-3 text-left">স্কুল</th>
-              <th className="p-3 text-left">অ্যাকশন</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan={5} className="p-4 text-center">লোড হচ্ছে...</td></tr>
-            ) : students.length === 0 ? (
-              <tr><td colSpan={5} className="p-4 text-center">কোনো শিক্ষার্থী নেই</td></tr>
-            ) : (
-              students.map((student) => (
-                <tr key={student.id} className="border-t hover:bg-gray-50">
-                  <td className="p-3 font-semibold">{student.name_bn}</td>
-                  <td className="p-3">{student.roll}</td>
-                  <td className="p-3">{student.class}য়</td>
-                  <td className="p-3 text-gray-600">{student.schools?.name_bn || '-'}</td>
-                  <td className="p-3">
-                    <button onClick={() => handleDelete(student.id, student.name_bn)}
-                      className="text-red-600 hover:underline">🗑️ ডিলিট</button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
       </div>
     </div>
   );
