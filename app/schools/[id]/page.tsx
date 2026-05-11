@@ -263,7 +263,27 @@ export default function SchoolDetailPage() {
           </div>
         </div>
       </div>
-      <style jsx>{`@media print { .no-print { display: none !important; } body { background: white !important; } }`}</style>
+     <style jsx>{`
+  @media print {
+    body * {
+      visibility: hidden;
+    }
+    #printable-area, #printable-area * {
+      visibility: visible;
+    }
+    #printable-area {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      padding: 40px;
+      background: white;
+    }
+    .no-print {
+      display: none !important;
+    }
+  }
+`}</style>
     </div>
   );
 }
