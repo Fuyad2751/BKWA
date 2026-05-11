@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -16,10 +16,6 @@ export default function SchoolDetailPage() {
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
   const [selectedResult, setSelectedResult] = useState<any>(null);
 
-  const handlePrint = () => {
-    window.print();
-  };
-
   useEffect(() => {
     if (params?.id) fetchSchoolData(params.id as string);
   }, [params?.id]);
@@ -27,10 +23,31 @@ export default function SchoolDetailPage() {
   const fetchSchoolData = async (id: string) => {
     const { data: s } = await supabase.from('schools').select('*').eq('id', id).single();
     if (s) setSchool(s);
-    const { data: st } = await supabase.from('students').select('*').eq('school_id', id).order('class').order('name_bn');
-    if (st) setStudents(st);
-    const { data: r } = await supabase.from('results').select('*, students!inner(name_bn, class, roll), scholarship_exams(year, title_bn)').eq('school_id', id).order('total_marks', { ascending: false });
+
+    // শিক্ষার্থী + তাদের রোল (exam_registrations থেকে)
+    const { data: st } = await supabase
+      .from('students')
+      .select('*, exam_registrations!inner(roll)')
+      .eq('school_id', id)
+      .order('class')
+      .order('name_bn');
+    
+    if (st) {
+      const mapped = st.map((student: any) => ({
+        ...student,
+        exam_roll: student.exam_registrations?.roll || 'অনিবন্ধিত'
+      }));
+      setStudents(mapped);
+    }
+
+    // ফলাফল
+    const { data: r } = await supabase
+      .from('results')
+      .select('*, students!inner(name_bn, class), scholarship_exams(year, title_bn)')
+      .eq('school_id', id)
+      .order('total_marks', { ascending: false });
     if (r) setResults(r);
+
     setLoading(false);
   };
 
@@ -45,13 +62,6 @@ export default function SchoolDetailPage() {
     if (g === 'Talentpool') return 'ট্যালেন্টপুল';
     if (g === 'General') return 'সাধারণ';
     return g;
-  };
-
-  const getGradeClass = (g: string) => {
-    if (g === 'Scholarship') return 'bg-yellow-100 text-yellow-800 border-yellow-400';
-    if (g === 'Talentpool') return 'bg-blue-100 text-blue-800 border-blue-400';
-    if (g === 'General') return 'bg-green-100 text-green-800 border-green-400';
-    return 'bg-red-100 text-red-800';
   };
 
   const groupedStudents: any = {};
@@ -75,23 +85,20 @@ export default function SchoolDetailPage() {
                 <h3 className="text-xl font-bold">📋 রেজাল্ট কার্ড</h3>
                 <button onClick={() => { setSelectedStudent(null); setSelectedResult(null); }} className="text-2xl">✕</button>
               </div>
-              
               <div id="printable-area" className="p-4">
                 <div className="text-center border-b-2 border-green-600 pb-4 mb-4">
                   <h2 className="text-lg font-bold text-green-700">বাংলাদেশ কিন্ডার গার্টেন ওয়েলফেয়ার এসোসিয়েশন</h2>
                   <p className="text-sm">বৃত্তি পরীক্ষার ফলাফল</p>
                   {selectedResult && <p className="text-sm font-bold">{selectedResult.scholarship_exams?.title_bn} - {selectedResult.scholarship_exams?.year}</p>}
                 </div>
-
                 <div className="space-y-2 mb-4 text-sm">
                   <div className="flex justify-between border-b py-1"><span className="font-semibold">নাম</span><span>{selectedStudent.name_bn}</span></div>
                   <div className="flex justify-between border-b py-1"><span className="font-semibold">পিতা</span><span>{selectedStudent.father_name || '-'}</span></div>
                   <div className="flex justify-between border-b py-1"><span className="font-semibold">মাতা</span><span>{selectedStudent.mother_name || '-'}</span></div>
                   <div className="flex justify-between border-b py-1"><span className="font-semibold">বিদ্যালয়</span><span>{school.name_bn}</span></div>
                   <div className="flex justify-between border-b py-1"><span className="font-semibold">শ্রেণি</span><span>{classNames[selectedStudent.class]}</span></div>
-                  <div className="flex justify-between border-b py-1"><span className="font-semibold">রোল</span><span className="font-bold text-green-700">{selectedResult?.students?.roll || 'অনিবন্ধিত'}</span></div>
+                  <div className="flex justify-between border-b py-1"><span className="font-semibold">রোল</span><span className="font-bold text-green-700">{selectedStudent.exam_roll || 'অনিবন্ধিত'}</span></div>
                 </div>
-
                 {selectedResult ? (
                   <>
                     <table className="w-full text-sm mb-4 border">
@@ -99,26 +106,17 @@ export default function SchoolDetailPage() {
                       <tbody><tr className="text-center font-semibold"><td className="p-2 border">{selectedResult.bangla_marks || '-'}</td><td className="p-2 border">{selectedResult.english_marks || '-'}</td><td className="p-2 border">{selectedResult.math_marks || '-'}</td>{selectedResult.subject_count >= 4 && <td className="p-2 border">{selectedResult.science_marks || '-'}</td>}</tr></tbody>
                     </table>
                     <div className="grid grid-cols-2 gap-4 text-center">
-                      <div className="bg-green-50 rounded-lg p-3">
-                        <p className="text-xs text-gray-600">মোট নম্বর</p>
-                        <p className="text-2xl font-bold text-green-700">{selectedResult.total_marks}</p>
-                      </div>
-                      <div className={`rounded-lg p-3 border ${getGradeClass(selectedResult.grade)}`}>
-                        <p className="text-xs">গ্রেড</p>
-                        <p className="text-xl font-bold">{getGradeName(selectedResult.grade)}</p>
-                      </div>
+                      <div className="bg-green-50 rounded-lg p-3"><p className="text-xs text-gray-600">মোট নম্বর</p><p className="text-2xl font-bold text-green-700">{selectedResult.total_marks}</p></div>
+                      <div className={`rounded-lg p-3 border ${selectedResult.grade === 'Scholarship' ? 'bg-yellow-100 text-yellow-800' : selectedResult.grade === 'Talentpool' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}><p className="text-xs">গ্রেড</p><p className="text-xl font-bold">{getGradeName(selectedResult.grade)}</p></div>
                     </div>
-                    {selectedResult.rank && (
-                      <p className="text-center mt-3 font-bold text-lg">🏅 মেধাক্রম: {selectedResult.rank}</p>
-                    )}
+                    {selectedResult.rank && <p className="text-center mt-3 font-bold text-lg">🏅 মেধাক্রম: {selectedResult.rank}</p>}
                   </>
                 ) : (
                   <div className="text-center py-4 text-gray-500">ফলাফল এখনো প্রকাশিত হয়নি</div>
                 )}
               </div>
-
               <div className="flex gap-3 mt-4 no-print">
-                <button onClick={handlePrint} className="flex-1 bg-blue-600 text-white py-2 rounded-lg font-bold hover:bg-blue-700">🖨️ প্রিন্ট</button>
+                <button onClick={() => window.print()} className="flex-1 bg-blue-600 text-white py-2 rounded-lg font-bold">🖨️ প্রিন্ট</button>
                 <button onClick={() => { setSelectedStudent(null); setSelectedResult(null); }} className="flex-1 bg-gray-300 py-2 rounded-lg font-bold">বন্ধ</button>
               </div>
             </div>
@@ -155,7 +153,7 @@ export default function SchoolDetailPage() {
                   <div className="p-6 border-b bg-green-50"><h2 className="text-xl font-bold text-green-700">{classNames[String(cls)]} শ্রেণী</h2><p className="text-sm text-gray-600 mt-1">মোট {list.length} জন</p></div>
                   <div className="overflow-x-auto">
                     <table className="w-full">
-                      <thead><tr className="bg-gray-50"><th className="p-4 text-left">ক্রমিক</th><th className="p-4 text-left">নাম</th><th className="p-4 text-left">লিঙ্গ</th><th className="p-4 text-left">ফলাফল</th></tr></thead>
+                      <thead><tr className="bg-gray-50"><th className="p-4 text-left">ক্রমিক</th><th className="p-4 text-left">নাম</th><th className="p-4 text-left">রোল</th><th className="p-4 text-left">লিঙ্গ</th><th className="p-4 text-left">ফলাফল</th></tr></thead>
                       <tbody>
                         {list.map((s: any, i: number) => {
                           const hasResult = results.find((r: any) => r.student_id === s.id);
@@ -163,6 +161,7 @@ export default function SchoolDetailPage() {
                             <tr key={s.id} className="border-t hover:bg-gray-50">
                               <td className="p-4">{i + 1}</td>
                               <td className="p-4 font-semibold">{s.name_bn}</td>
+                              <td className="p-4 text-green-700 font-bold">{s.exam_roll || '-'}</td>
                               <td className="p-4">{s.gender === 'male' ? 'ছেলে' : 'মেয়ে'}</td>
                               <td className="p-4">
                                 <button onClick={() => viewResultCard(s)}
@@ -182,14 +181,7 @@ export default function SchoolDetailPage() {
           </div>
         </div>
       </div>
-      
-      <style jsx>{`
-        @media print {
-          .no-print { display: none !important; }
-          body { background: white !important; }
-          #printable-area { padding: 20px; }
-        }
-      `}</style>
+      <style jsx>{`@media print { .no-print { display: none !important; } body { background: white !important; } }`}</style>
     </div>
   );
 }
