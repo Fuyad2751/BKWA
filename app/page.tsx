@@ -8,10 +8,12 @@ export default function HomePage() {
   const [stats, setStats] = useState({ schools: 0, students: 0, scholars: 0, talentpool: 0 });
   const [currentSlide, setCurrentSlide] = useState(0);
   const [realSchools, setRealSchools] = useState<any[]>([]);
+  const [notices, setNotices] = useState<any[]>([]);
 
   useEffect(() => {
     fetchStats();
     fetchRealSchools();
+    fetchNotices();
   }, []);
 
   const fetchStats = async () => {
@@ -33,6 +35,16 @@ export default function HomePage() {
       .select('id, name_bn, eiin, phone')
       .order('name_bn');
     if (data) setRealSchools(data);
+  };
+
+  const fetchNotices = async () => {
+    const { data } = await supabase
+      .from('notices')
+      .select('*')
+      .eq('is_published', true)
+      .order('created_at', { ascending: false })
+      .limit(3);
+    if (data) setNotices(data);
   };
 
   const slides = [
@@ -66,6 +78,16 @@ export default function HomePage() {
     return () => clearInterval(timer);
   }, []);
 
+  const getTypeIcon = (type: string) => {
+    switch(type) {
+      case 'exam': return '📝';
+      case 'result': return '📊';
+      case 'event': return '🎉';
+      case 'urgent': return '🚨';
+      default: return '📢';
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* ========== নেভবার ========== */}
@@ -82,6 +104,7 @@ export default function HomePage() {
             <Link href="/merit-list" className="text-gray-600 hover:text-green-600 transition">মেরিট লিস্ট</Link>
             <Link href="/scholarship" className="text-gray-600 hover:text-green-600 transition">স্কলারশিপ</Link>
             <Link href="/certificates" className="text-gray-600 hover:text-green-600 transition">সার্টিফিকেট</Link>
+            <Link href="/notices" className="text-gray-600 hover:text-green-600 transition">নোটিশ</Link>
             <Link href="/results" className="bg-green-600 text-white px-6 py-2 rounded-full font-semibold hover:bg-green-700 transition shadow-lg shadow-green-200">
               ফলাফল দেখুন
             </Link>
@@ -147,9 +170,9 @@ export default function HomePage() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {[
-            { icon: "🔍", title: "ফলাফল অনুসন্ধান", desc: "রোল নম্বর বা স্কুলের নাম দিয়ে সহজেই ফলাফল জানুন। দ্রুত এবং নির্ভুল ফলাফল সেবা।", link: "/results", color: "border-green-500" },
-            { icon: "📋", title: "মেরিট লিস্ট", desc: "বর্ষসেরা মেধাবীদের তালিকা দেখুন। জেনে নিন কে পেয়েছে সর্বোচ্চ নম্বর।", link: "/merit-list", color: "border-blue-500" },
-            { icon: "📚", title: "স্কলারশিপ তথ্য", desc: "স্কলারশিপ ও ট্যালেন্টপুল বৃত্তি সম্পর্কে বিস্তারিত জানুন। জেনে নিন যোগ্যতার মানদণ্ড।", link: "/scholarship", color: "border-purple-500" }
+            { icon: "🔍", title: "ফলাফল অনুসন্ধান", desc: "রোল নম্বর বা স্কুলের নাম দিয়ে সহজেই ফলাফল জানুন।", link: "/results", color: "border-green-500" },
+            { icon: "📋", title: "মেরিট লিস্ট", desc: "বর্ষসেরা মেধাবীদের তালিকা দেখুন।", link: "/merit-list", color: "border-blue-500" },
+            { icon: "📚", title: "স্কলারশিপ তথ্য", desc: "স্কলারশিপ ও ট্যালেন্টপুল সম্পর্কে বিস্তারিত জানুন।", link: "/scholarship", color: "border-purple-500" }
           ].map((feature, i) => (
             <Link key={i} href={feature.link} className="group">
               <div className={`bg-white rounded-2xl shadow-lg p-8 border-t-4 ${feature.color} hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2`}>
@@ -162,6 +185,37 @@ export default function HomePage() {
           ))}
         </div>
       </section>
+
+      {/* ========== নোটিশ বোর্ড ========== */}
+      {notices.length > 0 && (
+        <section className="bg-white py-16">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-10">
+              <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">📢 নোটিশ বোর্ড</h2>
+              <p className="text-gray-600">এসোসিয়েশনের সর্বশেষ ঘোষণা</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+              {notices.map(notice => (
+                <div key={notice.id} className="bg-gray-50 rounded-xl shadow p-6 border-t-4 border-blue-500 hover:shadow-lg transition">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-2xl">{getTypeIcon(notice.type)}</span>
+                    <span className="text-xs text-gray-500">
+                      {new Date(notice.created_at).toLocaleDateString('bn-BD', { month: 'short', day: 'numeric' })}
+                    </span>
+                  </div>
+                  <h3 className="font-bold text-gray-800 mb-2">{notice.title_bn}</h3>
+                  {notice.content && <p className="text-sm text-gray-600">{notice.content}</p>}
+                </div>
+              ))}
+            </div>
+            <div className="text-center mt-8">
+              <Link href="/notices" className="bg-blue-600 text-white px-8 py-3 rounded-full font-bold hover:bg-blue-700 transition shadow-lg inline-block">
+                সকল নোটিশ দেখুন →
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ========== অংশগ্রহণকারী স্কুল ========== */}
       <section className="bg-white py-20">
@@ -190,6 +244,7 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
       {/* ========== CTA ========== */}
       <section className="bg-gradient-to-r from-green-600 to-emerald-700 text-white py-20">
         <div className="container mx-auto px-4 text-center">
@@ -218,14 +273,16 @@ export default function HomePage() {
                 <div><Link href="/results" className="hover:text-white">ফলাফল</Link></div>
                 <div><Link href="/schools" className="hover:text-white">স্কুল</Link></div>
                 <div><Link href="/merit-list" className="hover:text-white">মেরিট লিস্ট</Link></div>
+                <div><Link href="/certificates" className="hover:text-white">সার্টিফিকেট</Link></div>
+                <div><Link href="/notices" className="hover:text-white">নোটিশ বোর্ড</Link></div>
               </div>
             </div>
             <div>
               <h4 className="font-bold mb-4">যোগাযোগ</h4>
               <div className="space-y-2 text-gray-400">
-                <div>📞 +88 1717-547312</div>
+                <div>📞 +৮৮০ ১৭০০-০০০০০০</div>
                 <div>✉️ info@bkwa.org</div>
-                <div>📍 তুলসীঘাট,গাইবান্ধা</div>
+                <div>📍 ঢাকা, বাংলাদেশ</div>
               </div>
             </div>
             <div>
